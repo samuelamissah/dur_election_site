@@ -97,5 +97,4 @@ export default function CandidateCard({ candidate, isSelected, onSelect }: Candi
       </div>
     </div>
   );
-  );
 }

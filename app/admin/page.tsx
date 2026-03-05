@@ -44,7 +44,7 @@ export default function AdminPage() {
   return (
     <div className="flex h-auto md:h-[calc(100vh-65px)] bg-zinc-50 dark:bg-zinc-950 font-sans antialiased overflow-x-hidden md:overflow-hidden flex-col md:flex-row">
       {/* Sidebar */}
-      <aside className="w-72 bg-white dark:bg-zinc-900 border-r border-zinc-200 dark:border-zinc-800 flex flex-col hidden md:flex shadow-sm shrink-0">
+      <aside className="w-72 bg-white dark:bg-zinc-900 border-r border-zinc-200 dark:border-zinc-800  flex-col hidden md:flex shadow-sm shrink-0">
         <div className="p-8 border-b border-zinc-100 dark:border-zinc-800 flex items-center gap-3">
           <div className="w-10 h-10 bg-blue-600 rounded-xl flex items-center justify-center text-white shadow-lg shadow-blue-500/20">
             <Landmark className="w-6 h-6" />
