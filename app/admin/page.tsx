@@ -203,9 +203,6 @@ function ResultsView() {
 
   useEffect(() => {
     fetchStats();
-    // Poll every 30 seconds
-    const interval = setInterval(fetchStats, 30000);
-    return () => clearInterval(interval);
   }, [fetchStats]);
   useEffect(() => {
     queueMicrotask(() => setHydrated(true));
@@ -248,32 +245,98 @@ function ResultsView() {
           </div>
         )}
 
-        <div className="space-y-8">
-          {detailedResults.map((position) => (
-            <div key={position.id} className="border-b border-zinc-100 dark:border-zinc-700 pb-8 last:border-0 last:pb-0">
-              <h4 className="text-md font-bold text-zinc-800 dark:text-zinc-200 mb-4 uppercase tracking-wide">
-                {position.title}
-              </h4>
-              <div className="space-y-3">
-                {position.candidates.map((candidate: any) => {
-                  const totalVotesForPos = position.candidates.reduce((sum: number, c: any) => sum + (c.voteCount || 0), 0);
-                  const percentage = totalVotesForPos > 0 ? Math.round(((candidate.voteCount || 0) / totalVotesForPos) * 100) : 0;
-                  
-                  return (
-                    <div key={candidate.id} className="relative">
-                      <div className="flex justify-between items-end mb-1">
-                        <span className="text-sm font-medium text-zinc-700 dark:text-zinc-300">{candidate.name}</span>
-                        <span className="text-sm font-bold text-zinc-900 dark:text-zinc-100">{candidate.voteCount || 0} votes ({percentage}%)</span>
-                      </div>
-                      <div className="w-full bg-zinc-100 dark:bg-zinc-700 rounded-full h-2.5 overflow-hidden">
-                        <div 
-                          className="bg-blue-600 h-2.5 rounded-full transition-all duration-500" 
-                          style={{ width: `${percentage}%` }}
-                        ></div>
-                      </div>
-                    </div>
-                  );
-                })}
+        <div className="space-y-12">
+          {detailedResults.map((position, index) => (
+            <div key={position.slug || position.id || `pos-${index}`} className="bg-zinc-50 dark:bg-zinc-900/50 rounded-2xl p-6 border border-zinc-100 dark:border-zinc-800">
+              <div className="flex items-center justify-between mb-8">
+                <div>
+                  <h4 className="text-lg font-black text-zinc-900 dark:text-zinc-50 uppercase tracking-tight">
+                    {position.title}
+                  </h4>
+                  <p className="text-xs text-zinc-500 font-medium mt-1">{position.description || 'Results for ' + position.title}</p>
+                </div>
+                <div className="px-3 py-1 bg-blue-100 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 rounded-full text-[10px] font-black uppercase tracking-widest border border-blue-200 dark:border-blue-800/50">
+                  {position.candidates.reduce((sum: number, c: any) => sum + (c.voteCount || 0), 0)} Total Votes
+                </div>
+              </div>
+
+              <div className="space-y-6">
+                {position.candidates.length === 0 ? (
+                  <p className="text-sm text-zinc-400 italic py-4">No candidates registered for this position.</p>
+                ) : (
+                  position.candidates
+                    .sort((a: any, b: any) => (b.voteCount || 0) - (a.voteCount || 0))
+                    .map((candidate: any) => {
+                      const totalVotesForPos = position.candidates.reduce((sum: number, c: any) => sum + (c.voteCount || 0), 0);
+                      const percentage = totalVotesForPos > 0 ? Math.round(((candidate.voteCount || 0) / totalVotesForPos) * 100) : 0;
+                      
+                      const initials = candidate.name
+                        .split(' ')
+                        .filter(Boolean)
+                        .slice(0, 2)
+                        .map((s: string) => s[0]?.toUpperCase() || '')
+                        .join('');
+                      
+                      return (
+                        <div key={candidate.id} className="group relative">
+                          <div className="flex justify-between items-center mb-2">
+                            <div className="flex items-center gap-3">
+                              {/* JD Initials / Image Circle */}
+                              <div className="w-10 h-10 rounded-full bg-white dark:bg-zinc-800 border-2 border-zinc-200 dark:border-zinc-700 flex items-center justify-center text-xs font-black text-blue-600 dark:text-blue-400 overflow-hidden shadow-sm group-hover:border-blue-500 transition-colors">
+                                {candidate.image_url ? (
+                                  <img 
+                                    src={candidate.image_url} 
+                                    alt="" 
+                                    className="w-full h-full object-cover" 
+                                    onError={(e) => {
+                                      (e.target as any).style.display = 'none';
+                                      (e.target as any).parentElement.innerText = initials;
+                                    }}
+                                  />
+                                ) : (
+                                  initials
+                                )}
+                              </div>
+                              <div>
+                                <span className="text-sm font-bold text-zinc-800 dark:text-zinc-200 group-hover:text-blue-600 transition-colors">
+                                  {candidate.name}
+                                </span>
+                                {candidate.voteCount > 0 && candidate.voteCount === Math.max(...position.candidates.map((c: any) => c.voteCount)) && (
+                                  <span className="ml-2 text-[8px] font-black uppercase tracking-tighter bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400 px-1.5 py-0.5 rounded shadow-sm border border-green-200 dark:border-green-800/50">Winner</span>
+                                )}
+                              </div>
+                            </div>
+                            <div className="text-right">
+                              <span className="text-base font-black text-zinc-900 dark:text-zinc-50">{candidate.voteCount || 0}</span>
+                              <span className="text-[10px] text-zinc-400 font-bold ml-1 uppercase">Votes</span>
+                              <div className="text-[10px] font-black text-blue-600 dark:text-blue-400 leading-none mt-0.5">{percentage}%</div>
+                            </div>
+                          </div>
+                          
+                          {/* Horizontal Bar Chart */}
+                          <div className="relative h-6 bg-zinc-100/50 dark:bg-zinc-800/50 rounded-lg border border-zinc-200 dark:border-zinc-700 overflow-hidden flex items-center shadow-inner group-hover:bg-zinc-100 dark:group-hover:bg-zinc-800 transition-colors">
+                            {/* Vertical Grid Lines for scale */}
+                            <div className="absolute inset-0 flex justify-between px-px pointer-events-none opacity-20 dark:opacity-10">
+                              {[0, 25, 50, 75, 100].map(v => (
+                                <div key={v} className="h-full w-px bg-zinc-400 dark:bg-zinc-500" />
+                              ))}
+                            </div>
+
+                            <div 
+                              className={`h-full rounded-r-lg transition-all duration-1000 ease-out shadow-[4px_0_12px_rgba(37,99,235,0.4)] relative group-hover:brightness-110 ${
+                                percentage === 0 ? 'w-0' : 'bg-linear-to-r from-blue-700 to-blue-500'
+                              }`}
+                              style={{ width: `${percentage}%` }}
+                            >
+                              {percentage > 10 && (
+                                <div className="absolute inset-0 bg-linear-to-r from-transparent via-white/20 to-transparent animate-shimmer" />
+                              )}
+                            </div>
+                          </div>
+                        </div>
+                      );
+                    })
+                )}
               </div>
             </div>
           ))}

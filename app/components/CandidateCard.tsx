@@ -1,4 +1,5 @@
 
+import { useState } from 'react';
 import Image from 'next/image';
 import { User, Check } from 'lucide-react';
 
@@ -17,6 +18,8 @@ interface CandidateCardProps {
 }
 
 export default function CandidateCard({ candidate, isSelected, onSelect }: CandidateCardProps) {
+  const [imageError, setImageError] = useState(false);
+
   const safeSrc = (() => {
     const u = candidate.imageUrl || '';
     const s = u.trim().replace(/[)\s]+$/, '');
@@ -52,17 +55,18 @@ export default function CandidateCard({ candidate, isSelected, onSelect }: Candi
           isSelected ? 'border-blue-600/20' : 'border-zinc-100 dark:border-zinc-800'
         }`} />
         <div className="w-full h-full rounded-full overflow-hidden shadow-inner relative">
-          {safeSrc ? (
+          {safeSrc && !imageError ? (
             <Image
               src={safeSrc}
               alt={candidate.name}
               fill
               className="object-cover"
+              onError={() => setImageError(true)}
             />
           ) : (
-            <div className="w-full h-full flex flex-col items-center justify-center bg-zinc-100 dark:bg-zinc-800 text-zinc-400 dark:text-zinc-600">
-              <User className="w-8 h-8 sm:w-12 sm:h-12 mb-1" />
-              <span className="text-[10px] sm:text-xs font-bold tracking-tighter">{initials}</span>
+            <div className="w-full h-full flex flex-col items-center justify-center bg-zinc-100 dark:bg-zinc-800 text-blue-600 dark:text-blue-400 font-black">
+              <User className="w-8 h-8 sm:w-12 sm:h-12 mb-1 opacity-20" />
+              <span className="text-xl sm:text-2xl tracking-tighter">{initials}</span>
             </div>
           )}
         </div>
