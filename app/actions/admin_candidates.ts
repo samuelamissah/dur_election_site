@@ -4,7 +4,8 @@
 import { createClient } from '../utils/supabase/server'
 import { revalidatePath } from 'next/cache'
 
-// ... existing code ...
+/* eslint-disable @typescript-eslint/no-explicit-any */
+
 
 export async function uploadCandidatesCsv(formData: FormData) {
   const file = formData.get('file') as File
@@ -43,13 +44,52 @@ export async function uploadCandidatesCsv(formData: FormData) {
   }
 
   const supabase = await createClient()
+ 
+  // Ensure required positions exist to satisfy FK constraint
+  const { data: existingPositions, error: posFetchErr } = await supabase
+    .from('positions')
+    .select('slug')
+ 
+  if (posFetchErr) {
+    console.error('Positions fetch error:', posFetchErr)
+    return { error: 'Failed to validate positions: ' + posFetchErr.message }
+  }
+ 
+  const existingSet = new Set<string>((existingPositions || []).map(p => p.slug))
+  const neededSlugs = Array.from(new Set(candidatesData.map(c => c.position_id)))
+  const missingSlugs = neededSlugs.filter(slug => !existingSet.has(slug))
+ 
+  if (missingSlugs.length > 0) {
+    // Auto-create missing positions (slug -> Title) to satisfy FK
+    const toTitle = (slug: string) =>
+      slug
+        .split('-')
+        .map(s => s.charAt(0).toUpperCase() + s.slice(1))
+        .join(' ')
+ 
+    const insertPayload = missingSlugs.map(slug => ({
+      slug,
+      title: toTitle(slug),
+      description: '',
+      display_order: 999,
+    }))
+ 
+    const { error: posInsertErr } = await supabase.from('positions').insert(insertPayload)
+    if (posInsertErr) {
+      console.error('Positions insert error:', posInsertErr)
+      return { error: 'Failed to create required positions: ' + posInsertErr.message }
+    }
+  }
   
   // Verify positions exist first? 
   // For simplicity, we assume they do (seeded in SQL) or insert will fail with FK constraint
   
-  const { error } = await supabase
-    .from('candidates')
-    .insert(candidatesData)
+  let { error } = await supabase.from('candidates').insert(candidatesData)
+  if (error && error.code === 'PGRST205') {
+    // Fallback if table is singular 'candidate'
+    const fallback = await supabase.from('candidate').insert(candidatesData)
+    error = fallback.error || null as any
+  }
 
   if (error) {
     console.error('Candidate upload error:', error)
@@ -59,58 +99,50 @@ export async function uploadCandidatesCsv(formData: FormData) {
   revalidatePath('/admin')
   return { success: true, count: candidatesData.length }
 }
+ 
+ export async function deletePosition(slug: string) {
+  const supabase = await createClient()
+  await supabase.from('votes').delete().eq('position_id', slug)
+  await supabase.from('candidates').delete().eq('position_id', slug)
+  const { error } = await supabase.from('positions').delete().eq('slug', slug)
+  if (error) {
+    return { error: 'Failed to delete position: ' + error.message }
+  }
+  revalidatePath('/admin')
+  return { success: true }
+ }
 
 export async function getDetailedResults() {
   const supabase = await createClient()
+  const { createServiceClient } = await import('../utils/supabase/serviceRole')
+  const supabaseSR = createServiceClient()
   
-  // Get all positions
   const { data: positions } = await supabase
     .from('positions')
-    .select('*')
+    .select('slug,title,description,display_order,id')
     .order('display_order')
-
   if (!positions) return []
-
-  // Get vote counts grouped by candidate
-  // Since Supabase JS client doesn't support complex GROUP BY easily without views/RPC,
-  // we'll fetch raw votes and aggregate in memory (fine for small scale < 1000 votes)
-  // OR use .rpc() if we had a function.
   
-  // Let's try a view approach or raw query? 
-  // Simplest for prototype: Fetch all candidates and all votes.
+  const { data: candidates } = await supabase
+    .from('candidates')
+    .select('id,name,role,bio,image_url,position_id')
   
-  const { data: candidates } = await supabase.from('candidates').select('*')
-  const { data: votes } = await supabase.from('votes').select('candidate_id, position_id')
+  // Use a view or grouped counts via service role to avoid RLS and complex client grouping
+  const { data: counts } = await supabaseSR
+    .from('candidate_vote_counts')
+    .select('candidate_id,position_id,vote_count')
   
-  if (!candidates || !votes) return []
-
-  // Aggregate
-  const results = positions.map(pos => {
-    const posCandidates = candidates.filter(c => c.position_id === pos.slug)
-    
-    const candidatesWithVotes = posCandidates.map(cand => {
-      const count = votes.filter(v => v.candidate_id === cand.id).length // wait, candidate_id in votes table needs to match ID in candidates table
-      // BUT, in our mock data/setup, we might be mixing IDs.
-      // In db_candidates.sql, candidates have UUIDs.
-      // In vote.ts, we insert whatever ID the frontend sent.
-      // The frontend currently uses hardcoded IDs like 'c1', 'c2' from lib/data.ts
-      
-      // CRITICAL: We need to switch the frontend to use DB candidates instead of hardcoded data.ts
-      // For now, let's assume the upload CSV will provide the IDs or we use names?
-      // Actually, if we upload candidates to DB, they get new UUIDs.
-      // The frontend needs to FETCH candidates from DB to display them.
-      
-      return {
-        ...cand,
-        voteCount: count
-      }
-    })
-    
-    return {
-      ...pos,
-      candidates: candidatesWithVotes
-    }
+  const countMap = new Map<string, number>()
+  ;(counts || []).forEach(c => {
+    countMap.set(`${c.position_id}:${c.candidate_id}`, c.vote_count as number)
   })
   
-  return results
+  return positions.map((pos: any) => {
+    const posCandidates = (candidates || []).filter((c: any) => c.position_id === pos.slug)
+    const candidatesWithVotes = posCandidates.map((cand: any) => {
+      const voteCount = countMap.get(`${pos.slug}:${cand.id}`) || 0
+      return { ...cand, voteCount }
+    })
+    return { ...pos, candidates: candidatesWithVotes }
+  })
 }

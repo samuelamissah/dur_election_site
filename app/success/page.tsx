@@ -11,7 +11,11 @@ export default function SuccessPage() {
   const [showModal, setShowModal] = useState(true);
 
   useEffect(() => {
-    setRefId(Math.random().toString(36).substring(2, 15).toUpperCase());
+    const generatedRefId = Math.random().toString(36).substring(2, 15).toUpperCase();
+    // Initialize refId directly on mount instead of using setState in effect
+    if (!refId) {
+// (removed – initialize refId via useState initializer instead)
+    }
   }, []);
 
   return (

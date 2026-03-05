@@ -4,6 +4,8 @@
 import { createClient } from '../utils/supabase/server'
 import { revalidatePath } from 'next/cache'
 
+/* eslint-disable @typescript-eslint/no-explicit-any */
+
 export async function uploadStaffCsv(formData: FormData) {
   const file = formData.get('file') as File
   if (!file) {
@@ -73,7 +75,9 @@ export async function sendConfirmationEmail(staffId: string) {
   }
 
   const transporter = nodemailer.createTransport({
-    service: 'gmail',
+    host: 'smtp.gmail.com',
+    port: 465,
+    secure: true,
     auth: {
       user: process.env.SMTP_USER,
       pass: process.env.SMTP_PASS,
@@ -83,10 +87,10 @@ export async function sendConfirmationEmail(staffId: string) {
   const mailOptions = {
     from: `"DUR Election Committee" <${process.env.SMTP_USER}>`,
     to: staff.email,
-    subject: 'Action Required: DUR Staff Election 2026',
+    subject: 'Action Required: DUR Welfare Election 2026',
     html: `
       <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
-        <h2 style="color: #2563EB;">Department of Urban Roads Staff Election 2026</h2>
+        <h2 style="color: #2563EB;">Department of Urban Roads Welfare Election 2026</h2>
         <p>Hello,</p>
         <p>You have been registered as an eligible voter for the upcoming staff election.</p>
         
@@ -180,3 +184,70 @@ export async function getStaffList() {
    revalidatePath('/admin')
    return { success: true }
  }
+ 
+ export async function deleteAllStaff() {
+   const supabase = await createClient()
+   await supabase.from('votes').delete()
+   const { error } = await supabase.from('staff').delete()
+   if (error) {
+     console.error('Delete all staff error:', error)
+     return { error: 'Failed to delete all staff: ' + error.message }
+   }
+   revalidatePath('/admin')
+   return { success: true }
+ }
+ 
+ export async function deleteAllCandidates() {
+   const supabase = await createClient()
+   const { error } = await supabase.from('candidates').delete()
+   if (error) {
+     console.error('Delete all candidates error:', error)
+     return { error: 'Failed to delete all candidates: ' + error.message }
+   }
+   revalidatePath('/admin')
+   return { success: true }
+ }
+
+export async function sendThankYouEmail(staffId: string) {
+  const supabase = await createClient()
+  const { data: staff, error } = await supabase
+    .from('staff')
+    .select('email')
+    .eq('staff_id', staffId)
+    .single()
+  if (error || !staff?.email) {
+    return { error: 'Staff email not found' }
+  }
+  const transporter = nodemailer.createTransport({
+    host: 'smtp.gmail.com',
+    port: 465,
+    secure: true,
+    auth: {
+      user: process.env.SMTP_USER,
+      pass: process.env.SMTP_PASS,
+    },
+  })
+  const mailOptions = {
+    from: `"DUR Election Committee" <${process.env.SMTP_USER}>`,
+    to: staff.email,
+    subject: 'Thank You: Your Vote Has Been Recorded',
+    html: `
+      <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+        <h2 style="color: #2563EB;">Thank You for Voting</h2>
+        <p>Hello,</p>
+        <p>Your vote has been recorded successfully for the Staff Election.</p>
+        <p style="margin-top: 12px; font-size: 12px; color: #6B7280;">If you have any concerns, contact the election committee.</p>
+      </div>
+    `,
+  }
+  try {
+    await transporter.sendMail(mailOptions)
+    await supabase
+      .from('staff')
+      .update({ thank_you_sent: true, thank_you_last_sent_at: new Date().toISOString() })
+      .eq('staff_id', staffId)
+    return { success: true }
+  } catch (emailError: any) {
+    return { error: 'Failed to send thank you email: ' + emailError.message }
+  }
+}

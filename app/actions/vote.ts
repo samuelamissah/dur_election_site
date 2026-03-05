@@ -4,6 +4,8 @@
 import { createClient } from '../utils/supabase/server'
 import { cookies } from 'next/headers'
 import { redirect } from 'next/navigation'
+import { createServiceClient } from '../utils/supabase/serviceRole'
+import { sendThankYouEmail } from './admin'
 
 export async function submitVote(selections: Record<string, string>) {
   const cookieStore = await cookies()
@@ -39,8 +41,8 @@ export async function submitVote(selections: Record<string, string>) {
       rpcError.code === 'PGRST202'
     ) {
       // Fallback flow:
-      // 1) Mark staff as voted only if not voted yet
-      const { data: updated, error: updateErr } = await supabase
+      const supabaseSR = createServiceClient()
+      const { data: updated, error: updateErr } = await supabaseSR
         .from('staff')
         .update({ has_voted: true })
         .eq('staff_id', staffId)
@@ -56,21 +58,20 @@ export async function submitVote(selections: Record<string, string>) {
         return { error: 'You have already voted!' }
       }
 
-      // 2) Insert votes
       const voteRecords = votesArray.map(v => ({
         staff_id: staffId,
         position_id: v.position_id,
         candidate_id: v.candidate_id,
       }))
 
-      const { error: insertErr } = await supabase
+      const { error: insertErr } = await supabaseSR
         .from('votes')
         .insert(voteRecords)
 
       if (insertErr) {
         console.error('Fallback insert votes error:', insertErr)
         // rollback staff flag if insert failed
-        await supabase.from('staff').update({ has_voted: false }).eq('staff_id', staffId)
+        await supabaseSR.from('staff').update({ has_voted: false }).eq('staff_id', staffId)
         return { error: 'Vote submission failed. Please try again or contact support.' }
       }
     } else {
@@ -83,5 +84,6 @@ export async function submitVote(selections: Record<string, string>) {
   }
 
   // Success!
+  await sendThankYouEmail(staffId)
   return { success: true }
 }

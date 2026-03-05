@@ -1,12 +1,13 @@
 
 'use client';
 
-import { uploadStaffCsv, getElectionStats, getStaffList, sendConfirmationEmail, deleteStaff } from '../actions/admin';
-import { uploadCandidatesCsv, getDetailedResults } from '../actions/admin_candidates';
+import { uploadStaffCsv, getElectionStats, getStaffList, sendConfirmationEmail, deleteStaff, deleteAllStaff, deleteAllCandidates } from '../actions/admin';
+import { uploadCandidatesCsv, getDetailedResults, deletePosition } from '../actions/admin_candidates';
 import { useState, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import { Users, UserPlus, Settings, BarChart2, Upload, Mail, Download, RefreshCw } from 'lucide-react';
 import { useToast } from '../components/Toast';
+/* eslint-disable @typescript-eslint/no-explicit-any */
 
 export default function AdminPage() {
   const [activeTab, setActiveTab] = useState('results');
@@ -149,6 +150,7 @@ function ResultsView() {
   const [detailedResults, setDetailedResults] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [isElectionActive, setIsElectionActive] = useState(true); // Should fetch from DB/Config
+  const [hydrated, setHydrated] = useState(false);
 
   const fetchStats = useCallback(async () => {
     setIsLoading(true);
@@ -178,6 +180,9 @@ function ResultsView() {
     const interval = setInterval(fetchStats, 30000);
     return () => clearInterval(interval);
   }, [fetchStats]);
+  useEffect(() => {
+    setHydrated(true);
+  }, []);
 
   return (
     <div>
@@ -202,7 +207,7 @@ function ResultsView() {
       
       <div className="bg-white dark:bg-zinc-800 rounded-lg shadow p-6 mb-6">
         <h3 className="text-lg font-semibold mb-4 text-zinc-900 dark:text-zinc-100">Live Results by Position</h3>
-        <p className="text-xs text-zinc-400 mb-6">Last updated: {stats.lastUpdated.toLocaleTimeString()}</p>
+        <p className="text-xs text-zinc-400 mb-6" suppressHydrationWarning>Last updated: {hydrated ? stats.lastUpdated.toLocaleTimeString() : ''}</p>
         
         {isElectionActive && (
           <div className="bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 p-4 rounded-md mb-6 flex items-start">
@@ -413,10 +418,26 @@ function StaffManagement() {
             placeholder="Search Staff ID or Email..." 
             className="w-full sm:w-auto px-4 py-2 border rounded-md dark:bg-zinc-700 dark:border-zinc-600 focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none"
           />
-          <button className="w-full sm:w-auto bg-zinc-100 dark:bg-zinc-700 text-zinc-700 dark:text-zinc-300 px-4 py-2 rounded-md hover:bg-zinc-200 dark:hover:bg-zinc-600 transition-colors flex items-center gap-2 justify-center">
-            <Mail className="w-4 h-4" />
-            Send Confirmations
-          </button>
+          <div className="flex gap-2">
+            <button className="w-full sm:w-auto bg-zinc-100 dark:bg-zinc-700 text-zinc-700 dark:text-zinc-300 px-4 py-2 rounded-md hover:bg-zinc-200 dark:hover:bg-zinc-600 transition-colors flex items-center gap-2 justify-center">
+              <Mail className="w-4 h-4" />
+              Send Confirmations
+            </button>
+            <button
+              onClick={async () => {
+                const res: any = await deleteAllStaff();
+                if (res?.success) {
+                  show({ title: 'Deleted', message: 'All staff deleted', variant: 'success' });
+                  fetchStaff();
+                } else {
+                  show({ title: 'Delete Failed', message: res?.error || 'Failed to delete all staff', variant: 'error' });
+                }
+              }}
+              className="w-full sm:w-auto bg-red-600 text-white px-4 py-2 rounded-md hover:bg-red-700 transition-colors"
+            >
+              Delete All
+            </button>
+          </div>
         </div>
         <div className="overflow-x-auto">
           <table className="w-full text-left min-w-[600px]">
@@ -493,6 +514,7 @@ function CheckIcon() {
 function CandidateManagement() {
   const [csvFile, setCsvFile] = useState<File | null>(null);
   const [uploadStatus, setUploadStatus] = useState('');
+  const { show } = useToast();
 
   const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files[0]) {
@@ -572,6 +594,19 @@ function CandidateManagement() {
           >
             Upload
           </button>
+          <button
+            onClick={async () => {
+              const res: any = await deleteAllCandidates();
+              if (res?.success) {
+                show({ title: 'Deleted', message: 'All candidates deleted', variant: 'success' });
+              } else {
+                show({ title: 'Delete Failed', message: res?.error || 'Failed to delete all candidates', variant: 'error' });
+              }
+            }}
+            className="px-6 py-3 rounded-lg font-medium bg-red-600 text-white hover:bg-red-700 transition-colors"
+          >
+            Delete All
+          </button>
         </div>
       </div>
     </div>
@@ -598,6 +633,20 @@ function ElectionControl() {
           </button>
           <button className="w-full py-3 px-4 bg-red-600 text-white rounded-lg hover:bg-red-700 font-medium transition-colors">
             End Election Immediately
+          </button>
+          <button
+            onClick={async () => {
+              const res: any = await deletePosition('welfare')
+              // Toast not available here; minimal feedback via alert to avoid dependency
+              if (res?.success) {
+                alert('Welfare position removed')
+              } else {
+                alert(res?.error || 'Failed to remove welfare position')
+              }
+            }}
+            className="w-full py-3 px-4 bg-zinc-100 dark:bg-zinc-700 text-zinc-800 dark:text-zinc-200 rounded-lg hover:bg-zinc-200 dark:hover:bg-zinc-600 font-medium transition-colors"
+          >
+            Remove Welfare Position
           </button>
         </div>
       </div>

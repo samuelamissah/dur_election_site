@@ -21,7 +21,7 @@ export default function Home() {
 
         <div className="mb-12 text-center">
           <h1 className="text-4xl sm:text-5xl font-extrabold text-zinc-900 dark:text-zinc-50 mb-4">
-            Department of Urban Roads Staff Election 2026
+            Department of Urban Roads Welfare Election 2026
           </h1>
           <p className="text-lg text-zinc-600 dark:text-zinc-400 max-w-xl mx-auto">
             Welcome to the official voting portal. Please log in with your Staff ID to cast your vote.

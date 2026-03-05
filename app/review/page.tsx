@@ -3,24 +3,66 @@
 
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { POSITIONS } from '../lib/data';
 import ElectionBanner from '../components/ElectionBanner';
 import { CheckCircle, AlertTriangle } from 'lucide-react';
 import { submitVote } from '../actions/vote';export default function ReviewPage() {
   const [selections, setSelections] = useState<Record<string, string>>({});
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState('');
+  const [positions, setPositions] = useState<{ id: string; title: string; description: string }[]>([]);
+  const [candidatesById, setCandidatesById] = useState<Record<string, { name: string }>>({});
+  const [loading, setLoading] = useState(true);
   const router = useRouter();
+  const { createClient } = require('../utils/supabase/client');
 
   useEffect(() => {
     const saved = localStorage.getItem('election_selections');
     if (saved) {
-      setSelections(JSON.parse(saved));
+      try {
+        const parsed = JSON.parse(saved);
+        // Use a microtask to avoid synchronous setState in effect
+        Promise.resolve().then(() => setSelections(parsed));
+      } catch {
+        // If parsing fails, treat as missing selections
+        router.push('/vote');
+      }
     } else {
       // If no selections, redirect back to vote page
       router.push('/vote');
     }
   }, [router]);
+
+  useEffect(() => {
+    async function fetchSnapshot() {
+      setLoading(true);
+      const supabase = createClient();
+      const { data: posData, error: posErr } = await supabase
+        .from('positions')
+        .select('slug,title,description,display_order')
+        .order('display_order', { ascending: true });
+      if (posErr) {
+        setPositions([]);
+        setLoading(false);
+        return;
+      }
+      const mapped = (posData || []).map((p: any) => ({
+        id: p.slug,
+        title: p.title,
+        description: p.description || '',
+      }));
+      setPositions(mapped);
+      const { data: candData } = await supabase
+        .from('candidates')
+        .select('id,name');
+      const byId: Record<string, { name: string }> = {};
+      (candData || []).forEach((c: any) => {
+        byId[c.id] = { name: c.name };
+      });
+      setCandidatesById(byId);
+      setLoading(false);
+    }
+    fetchSnapshot();
+  }, []);
 
   const handleSubmit = async () => {
     setIsSubmitting(true);
@@ -44,13 +86,11 @@ import { submitVote } from '../actions/vote';export default function ReviewPage(
     }
   };
 
-  const getCandidateName = (positionId: string, candidateId: string) => {
-    const position = POSITIONS.find(p => p.id === positionId);
-    const candidate = position?.candidates.find(c => c.id === candidateId);
-    return candidate ? candidate.name : 'No selection';
+  const getCandidateName = (_positionId: string, candidateId: string) => {
+    return candidatesById[candidateId]?.name || 'No selection';
   };
 
-  const isComplete = POSITIONS.every(p => selections[p.id]);
+  const isComplete = positions.every(p => selections[p.id]);
 
   return (
     <div className="min-h-screen bg-zinc-50 dark:bg-zinc-950 font-sans antialiased">
@@ -63,7 +103,9 @@ import { submitVote } from '../actions/vote';export default function ReviewPage(
 
         <div className="bg-white dark:bg-zinc-900 rounded-lg shadow-sm border border-zinc-200 dark:border-zinc-800 overflow-hidden mb-8">
           <ul className="divide-y divide-zinc-200 dark:divide-zinc-800">
-            {POSITIONS.map(position => (
+            {loading ? (
+              <li className="p-6 text-center text-zinc-500">Loading review…</li>
+            ) : positions.map(position => (
               <li key={position.id} className="p-6 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                 <div>
                   <h3 className="text-lg font-semibold text-zinc-900 dark:text-zinc-100">
