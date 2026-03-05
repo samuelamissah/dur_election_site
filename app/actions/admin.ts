@@ -101,7 +101,7 @@ export async function sendConfirmationEmail(staffId: string) {
 
         <p>Please use your Staff ID to log in and cast your vote securely.</p>
         
-        <a href="${process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000'}" style="display: inline-block; background-color: #2563EB; color: white; padding: 12px 24px; text-decoration: none; border-radius: 5px; font-weight: bold;">
+        <a href="${process.env.NEXT_PUBLIC_SITE_URL || 'https://dur-election-site.vercel.app/'}" style="display: inline-block; background-color: #2563EB; color: white; padding: 12px 24px; text-decoration: none; border-radius: 5px; font-weight: bold;">
           Go to Voting Portal
         </a>
         
