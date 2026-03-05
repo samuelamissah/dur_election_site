@@ -100,33 +100,33 @@ export default function ReviewPage() {
     <div className="min-h-full bg-zinc-50 dark:bg-zinc-950 font-sans antialiased">
       <ElectionBanner />
       
-      <main className="max-w-4xl mx-auto px-6 py-12">
-        <div className="flex items-center justify-between mb-8">
+      <main className="max-w-4xl mx-auto px-4 sm:px-6 py-6 sm:py-12">
+        <div className="flex items-center justify-between mb-6 sm:mb-8">
           <button 
             onClick={() => router.push('/vote')}
-            className="flex items-center gap-2 text-zinc-500 hover:text-blue-600 font-bold transition-colors group"
+            className="flex items-center gap-2 text-zinc-500 hover:text-blue-600 font-bold transition-colors group text-sm sm:text-base"
           >
-            <ArrowLeft className="w-5 h-5 group-hover:-translate-x-1 transition-transform" />
-            Back to Ballot
+            <ArrowLeft className="w-4 h-4 sm:w-5 sm:h-5 group-hover:-translate-x-1 transition-transform" />
+            Back<span className="hidden xs:inline"> to Ballot</span>
           </button>
           <div className="flex items-center gap-2 px-3 py-1.5 bg-blue-50 dark:bg-blue-900/20 text-blue-600 dark:text-blue-400 rounded-lg border border-blue-100 dark:border-blue-800/50">
-            <ShieldCheck className="w-4 h-4" />
-            <span className="text-[10px] font-black uppercase tracking-widest">Final Review</span>
+            <ShieldCheck className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
+            <span className="text-[8px] sm:text-[10px] font-black uppercase tracking-widest">Final Review</span>
           </div>
         </div>
 
-        <div className="bg-white dark:bg-zinc-900 rounded-3xl border border-zinc-200 dark:border-zinc-800 shadow-sm overflow-hidden">
-          <div className="p-8 sm:p-12 border-b border-zinc-100 dark:border-zinc-800 bg-zinc-50/50 dark:bg-zinc-800/20">
-            <h1 className="text-3xl font-extrabold text-zinc-900 dark:text-zinc-50 mb-3 tracking-tight">
+        <div className="bg-white dark:bg-zinc-900 rounded-2xl sm:rounded-3xl border border-zinc-200 dark:border-zinc-800 shadow-sm overflow-hidden">
+          <div className="p-6 sm:p-12 border-b border-zinc-100 dark:border-zinc-800 bg-zinc-50/50 dark:bg-zinc-800/20 text-center sm:text-left">
+            <h1 className="text-2xl sm:text-3xl font-extrabold text-zinc-900 dark:text-zinc-50 mb-2 sm:mb-3 tracking-tight">
               Review Your Selections
             </h1>
-            <p className="text-lg text-zinc-500 dark:text-zinc-400 leading-relaxed">
+            <p className="text-base sm:text-lg text-zinc-500 dark:text-zinc-400 leading-relaxed">
               Please verify your choices for each position before final submission. 
-              Once submitted, your vote cannot be changed.
+              <span className="hidden sm:inline"> Once submitted, your vote cannot be changed.</span>
             </p>
           </div>
 
-          <div className="p-8 sm:p-12 space-y-6">
+          <div className="p-4 sm:p-12 space-y-4 sm:space-y-6">
             {positions.map((pos) => {
               const candidateId = selections[pos.id];
               const candidateName = candidatesById[candidateId]?.name;
@@ -134,25 +134,25 @@ export default function ReviewPage() {
               return (
                 <div 
                   key={pos.id}
-                  className={`p-6 rounded-2xl border transition-all ${
+                  className={`p-4 sm:p-6 rounded-xl sm:rounded-2xl border transition-all ${
                     candidateName 
                       ? 'bg-zinc-50 dark:bg-zinc-800/50 border-zinc-100 dark:border-zinc-700 shadow-sm' 
                       : 'bg-red-50/50 dark:bg-red-900/10 border-red-100 dark:border-red-900/30'
                   }`}
                 >
-                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-                    <div>
-                      <p className="text-[10px] font-black uppercase tracking-widest text-zinc-400 dark:text-zinc-500 mb-1">
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 sm:gap-4">
+                    <div className="text-center sm:text-left">
+                      <p className="text-[8px] sm:text-[10px] font-black uppercase tracking-widest text-zinc-400 dark:text-zinc-500 mb-0.5 sm:mb-1">
                         {pos.title}
                       </p>
-                      <h3 className={`text-xl font-bold ${candidateName ? 'text-zinc-900 dark:text-zinc-100' : 'text-red-600 dark:text-red-400'}`}>
+                      <h3 className={`text-lg sm:text-xl font-bold ${candidateName ? 'text-zinc-900 dark:text-zinc-100' : 'text-red-600 dark:text-red-400'}`}>
                         {candidateName || 'No Selection Made'}
                       </h3>
                     </div>
                     {candidateName && (
-                      <div className="flex items-center gap-2 text-green-600 dark:text-green-400 px-3 py-1 bg-green-50 dark:bg-green-900/20 rounded-full border border-green-100 dark:border-green-800/50">
-                        <CheckCircle2 className="w-4 h-4" />
-                        <span className="text-[10px] font-bold uppercase tracking-wider">Confirmed</span>
+                      <div className="flex items-center justify-center sm:justify-start gap-2 text-green-600 dark:text-green-400 px-3 py-1 bg-green-50 dark:bg-green-900/20 rounded-full border border-green-100 dark:border-green-800/50 self-center">
+                        <CheckCircle2 className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
+                        <span className="text-[8px] sm:text-[10px] font-bold uppercase tracking-wider">Confirmed</span>
                       </div>
                     )}
                   </div>
@@ -162,16 +162,16 @@ export default function ReviewPage() {
           </div>
 
           {error && (
-            <div className="mx-8 sm:mx-12 p-4 bg-red-50 dark:bg-red-900/20 border border-red-100 dark:border-red-800/50 rounded-xl flex items-center gap-3 text-red-600 dark:text-red-400 text-sm font-medium">
+            <div className="mx-4 sm:mx-12 p-4 bg-red-50 dark:bg-red-900/20 border border-red-100 dark:border-red-800/50 rounded-xl flex items-center gap-3 text-red-600 dark:text-red-400 text-xs sm:text-sm font-medium">
               <AlertCircle className="w-5 h-5 shrink-0" />
               {error}
             </div>
           )}
 
-          <div className="p-8 sm:p-12 bg-zinc-50 dark:bg-zinc-800/20 border-t border-zinc-100 dark:border-zinc-800 flex flex-col sm:flex-row items-center justify-between gap-6">
-            <div className="flex items-center gap-3 text-zinc-500 dark:text-zinc-400">
-              <ShieldCheck className="w-5 h-5" />
-              <p className="text-xs leading-tight">
+          <div className="p-6 sm:p-12 bg-zinc-50 dark:bg-zinc-800/20 border-t border-zinc-100 dark:border-zinc-800 flex flex-col sm:flex-row items-center justify-between gap-6">
+            <div className="flex items-center gap-3 text-zinc-500 dark:text-zinc-400 text-center sm:text-left">
+              <ShieldCheck className="w-5 h-5 shrink-0 hidden sm:block" />
+              <p className="text-[10px] sm:text-xs leading-tight">
                 Your vote is encrypted and anonymous. <br className="hidden sm:block" />
                 Submission is final and binding.
               </p>
@@ -180,7 +180,7 @@ export default function ReviewPage() {
             <button
               onClick={handleSubmit}
               disabled={isSubmitting || !isComplete}
-              className={`flex items-center justify-center gap-2 px-10 py-4 rounded-xl font-bold transition-all active:scale-[0.98] w-full sm:w-auto shadow-lg ${
+              className={`flex items-center justify-center gap-2 px-8 sm:px-10 py-4 rounded-xl font-bold transition-all active:scale-[0.98] w-full sm:w-auto shadow-lg text-sm sm:text-base ${
                 isComplete && !isSubmitting
                   ? 'bg-blue-600 hover:bg-blue-700 text-white shadow-blue-500/20 hover:shadow-blue-500/30'
                   : 'bg-zinc-200 dark:bg-zinc-800 text-zinc-400 cursor-not-allowed'

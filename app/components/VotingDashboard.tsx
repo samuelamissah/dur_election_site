@@ -128,18 +128,18 @@ export default function VotingDashboard() {
   const progress = ((currentStep + 1) / positions.length) * 100;
 
   return (
-    <div className="max-w-5xl mx-auto px-6 py-12">
+    <div className="max-w-5xl mx-auto px-4 sm:px-6 py-6 sm:py-12">
       {/* Progress Stepper */}
-      <div className="mb-12">
+      <div className="mb-8 sm:mb-12">
         <div className="flex items-center justify-between mb-4">
-          <span className="text-sm font-bold text-blue-600 dark:text-blue-400 uppercase tracking-widest">
+          <span className="text-xs sm:text-sm font-bold text-blue-600 dark:text-blue-400 uppercase tracking-widest">
             Step {currentStep + 1} of {positions.length}
           </span>
-          <span className="text-sm font-medium text-zinc-500">
+          <span className="text-xs sm:text-sm font-medium text-zinc-500">
             {Math.round(progress)}% Complete
           </span>
         </div>
-        <div className="h-2 w-full bg-zinc-100 dark:bg-zinc-800 rounded-full overflow-hidden">
+        <div className="h-1.5 sm:h-2 w-full bg-zinc-100 dark:bg-zinc-800 rounded-full overflow-hidden">
           <div 
             className="h-full bg-blue-600 transition-all duration-500 ease-out rounded-full shadow-[0_0_10px_rgba(37,99,235,0.3)]"
             style={{ width: `${progress}%` }}
@@ -147,7 +147,7 @@ export default function VotingDashboard() {
         </div>
         
         {/* Step Indicators */}
-        <div className="hidden sm:flex justify-between mt-4">
+        <div className="hidden md:flex justify-between mt-4">
           {positions.map((pos, idx) => (
             <div 
               key={pos.id}
@@ -162,27 +162,27 @@ export default function VotingDashboard() {
         </div>
       </div>
 
-      <div className="bg-white dark:bg-zinc-900 rounded-3xl border border-zinc-200 dark:border-zinc-800 shadow-sm overflow-hidden">
-        <div className="p-8 sm:p-12 border-b border-zinc-100 dark:border-zinc-800 bg-zinc-50/50 dark:bg-zinc-800/20">
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-6">
-            <div className="max-w-2xl">
-              <h2 className="text-3xl font-extrabold text-zinc-900 dark:text-zinc-50 mb-3 tracking-tight">
+      <div className="bg-white dark:bg-zinc-900 rounded-2xl sm:rounded-3xl border border-zinc-200 dark:border-zinc-800 shadow-sm overflow-hidden">
+        <div className="p-6 sm:p-12 border-b border-zinc-100 dark:border-zinc-800 bg-zinc-50/50 dark:bg-zinc-800/20">
+          <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-6">
+            <div className="max-w-2xl text-center lg:text-left">
+              <h2 className="text-2xl sm:text-3xl font-extrabold text-zinc-900 dark:text-zinc-50 mb-2 sm:mb-3 tracking-tight">
                 {currentPos.title}
               </h2>
-              <p className="text-lg text-zinc-500 dark:text-zinc-400 leading-relaxed">
+              <p className="text-base sm:text-lg text-zinc-500 dark:text-zinc-400 leading-relaxed">
                 {currentPos.description}
               </p>
             </div>
-            <div className="flex items-center gap-3 px-4 py-2 bg-blue-50 dark:bg-blue-900/20 text-blue-700 dark:text-blue-300 rounded-xl border border-blue-100 dark:border-blue-800/50 self-start sm:self-center">
+            <div className="flex items-center justify-center lg:justify-start gap-3 px-4 py-2 bg-blue-50 dark:bg-blue-900/20 text-blue-700 dark:text-blue-300 rounded-xl border border-blue-100 dark:border-blue-800/50 self-center lg:self-center">
               <Info className="w-5 h-5 shrink-0" />
-              <span className="text-sm font-bold">Select one candidate</span>
+              <span className="text-xs sm:text-sm font-bold uppercase tracking-wide">Select one candidate</span>
             </div>
           </div>
         </div>
 
-        <div className="p-8 sm:p-12">
+        <div className="p-4 sm:p-12">
           {currentPos.candidates.length > 0 ? (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-8">
               {currentPos.candidates.map((candidate) => (
                 <CandidateCard
                   key={candidate.id}
@@ -203,30 +203,30 @@ export default function VotingDashboard() {
           )}
         </div>
 
-        <div className="p-8 sm:p-12 bg-zinc-50 dark:bg-zinc-800/20 border-t border-zinc-100 dark:border-zinc-800 flex items-center justify-between">
+        <div className="p-6 sm:p-12 bg-zinc-50 dark:bg-zinc-800/20 border-t border-zinc-100 dark:border-zinc-800 flex flex-row items-center justify-between gap-4">
           <button
             onClick={handleBack}
             disabled={currentStep === 0}
-            className="flex items-center gap-2 px-6 py-3 text-zinc-600 dark:text-zinc-400 font-bold hover:text-blue-600 dark:hover:text-blue-400 disabled:opacity-30 disabled:cursor-not-allowed transition-colors group"
+            className="flex items-center gap-2 px-4 sm:px-6 py-3 text-zinc-600 dark:text-zinc-400 font-bold hover:text-blue-600 dark:hover:text-blue-400 disabled:opacity-30 disabled:cursor-not-allowed transition-colors group text-sm sm:text-base"
           >
-            <ChevronLeft className="w-5 h-5 group-hover:-translate-x-1 transition-transform" />
-            Previous
+            <ChevronLeft className="w-4 h-4 sm:w-5 sm:h-5 group-hover:-translate-x-1 transition-transform" />
+            <span className="hidden xs:inline">Previous</span>
           </button>
           
           <button
             onClick={handleNext}
             disabled={!selections[currentPos.id]}
-            className="flex items-center gap-2 px-8 py-4 bg-blue-600 hover:bg-blue-700 disabled:bg-zinc-200 dark:disabled:bg-zinc-800 disabled:text-zinc-400 text-white font-bold rounded-xl shadow-lg shadow-blue-500/20 hover:shadow-blue-500/30 transition-all active:scale-[0.98] group"
+            className="flex-1 sm:flex-none flex items-center justify-center gap-2 px-6 sm:px-8 py-4 bg-blue-600 hover:bg-blue-700 disabled:bg-zinc-200 dark:disabled:bg-zinc-800 disabled:text-zinc-400 text-white font-bold rounded-xl shadow-lg shadow-blue-500/20 hover:shadow-blue-500/30 transition-all active:scale-[0.98] group text-sm sm:text-base"
           >
             {currentStep === positions.length - 1 ? (
               <>
-                Review Ballot
-                <CheckCircle2 className="w-5 h-5 group-hover:scale-110 transition-transform" />
+                Review <span className="hidden xs:inline">Ballot</span>
+                <CheckCircle2 className="w-4 h-4 sm:w-5 sm:h-5 group-hover:scale-110 transition-transform" />
               </>
             ) : (
               <>
-                Next Position
-                <ChevronRight className="w-5 h-5 group-hover:translate-x-1 transition-transform" />
+                Next <span className="hidden xs:inline">Position</span>
+                <ChevronRight className="w-4 h-4 sm:w-5 sm:h-5 group-hover:translate-x-1 transition-transform" />
               </>
             )}
           </button>

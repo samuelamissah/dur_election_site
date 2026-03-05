@@ -8,33 +8,33 @@ export default function Home() {
     <div className="min-h-full bg-zinc-50 dark:bg-zinc-950 flex flex-col items-center justify-center font-sans antialiased">
       <ElectionBanner />
       
-      <main className="flex-1 flex flex-col items-center justify-center p-8 sm:p-20 relative w-full max-w-5xl">
-        <div className="mb-12 text-center">
-          <h1 className="text-4xl sm:text-6xl font-extrabold text-zinc-900 dark:text-zinc-50 mb-6 tracking-tight">
+      <main className="flex-1 flex flex-col items-center justify-center p-6 sm:p-20 relative w-full max-w-5xl">
+        <div className="mb-10 sm:mb-12 text-center">
+          <h1 className="text-3xl sm:text-6xl font-extrabold text-zinc-900 dark:text-zinc-50 mb-4 sm:mb-6 tracking-tight">
             Department of <span className="text-blue-600">Urban Roads</span>
           </h1>
-          <p className="text-xl text-zinc-600 dark:text-zinc-400 max-w-2xl mx-auto leading-relaxed">
+          <p className="text-base sm:text-xl text-zinc-500 dark:text-zinc-400 max-w-2xl mx-auto leading-relaxed">
             Welcome to the official 2026 Welfare Election Portal. 
             Please use your designated Staff ID to securely access your voting ballot.
           </p>
         </div>
 
-        <div className="w-full max-w-md bg-white dark:bg-zinc-900 rounded-2xl shadow-xl shadow-zinc-200/50 dark:shadow-none border border-zinc-200 dark:border-zinc-800 p-8">
+        <div className="w-full max-w-md bg-white dark:bg-zinc-900 rounded-2xl shadow-xl shadow-zinc-200/50 dark:shadow-none border border-zinc-200 dark:border-zinc-800 p-6 sm:p-8">
           <LoginForm />
         </div>
 
-        <div className="mt-12 grid grid-cols-1 sm:grid-cols-3 gap-6 w-full max-w-4xl text-center">
-          <div className="p-4">
-            <h3 className="font-bold text-zinc-900 dark:text-zinc-100">Secure Voting</h3>
-            <p className="text-sm text-zinc-500 mt-1">End-to-end encrypted and confidential process.</p>
+        <div className="mt-12 grid grid-cols-1 sm:grid-cols-3 gap-4 sm:gap-6 w-full max-w-4xl text-center">
+          <div className="p-4 bg-white/50 dark:bg-zinc-900/50 rounded-xl border border-zinc-100 dark:border-zinc-800 sm:border-none sm:bg-transparent">
+            <h3 className="font-bold text-zinc-900 dark:text-zinc-100 text-sm sm:text-base">Secure Voting</h3>
+            <p className="text-xs sm:text-sm text-zinc-500 mt-1">End-to-end encrypted and confidential process.</p>
           </div>
-          <div className="p-4 border-x border-zinc-100 dark:border-zinc-800">
-            <h3 className="font-bold text-zinc-900 dark:text-zinc-100">Official Results</h3>
-            <p className="text-sm text-zinc-500 mt-1">Validated and verified by the Election Committee.</p>
+          <div className="p-4 bg-white/50 dark:bg-zinc-900/50 rounded-xl border border-zinc-100 dark:border-zinc-800 sm:border-x sm:border-y-0 sm:border-zinc-100 dark:sm:border-zinc-800 sm:rounded-none sm:bg-transparent">
+            <h3 className="font-bold text-zinc-900 dark:text-zinc-100 text-sm sm:text-base">Official Results</h3>
+            <p className="text-xs sm:text-sm text-zinc-500 mt-1">Validated and verified by the Election Committee.</p>
           </div>
-          <div className="p-4">
-            <h3 className="font-bold text-zinc-900 dark:text-zinc-100">Support Available</h3>
-            <p className="text-sm text-zinc-500 mt-1">Contact your HR department for any issues.</p>
+          <div className="p-4 bg-white/50 dark:bg-zinc-900/50 rounded-xl border border-zinc-100 dark:border-zinc-800 sm:border-none sm:bg-transparent">
+            <h3 className="font-bold text-zinc-900 dark:text-zinc-100 text-sm sm:text-base">Support Available</h3>
+            <p className="text-xs sm:text-sm text-zinc-500 mt-1">Contact your HR department for any issues.</p>
           </div>
         </div>
       </main>

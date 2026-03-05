@@ -42,9 +42,9 @@ export default function AdminPage() {
   };
 
   return (
-    <div className="flex h-[calc(100vh-65px)] bg-zinc-50 dark:bg-zinc-950 font-sans antialiased overflow-hidden">
+    <div className="flex h-auto md:h-[calc(100vh-65px)] bg-zinc-50 dark:bg-zinc-950 font-sans antialiased overflow-x-hidden md:overflow-hidden flex-col md:flex-row">
       {/* Sidebar */}
-      <aside className="w-72 bg-white dark:bg-zinc-900 border-r border-zinc-200 dark:border-zinc-800 flex flex-col hidden md:flex shadow-sm">
+      <aside className="w-72 bg-white dark:bg-zinc-900 border-r border-zinc-200 dark:border-zinc-800 flex flex-col hidden md:flex shadow-sm shrink-0">
         <div className="p-8 border-b border-zinc-100 dark:border-zinc-800 flex items-center gap-3">
           <div className="w-10 h-10 bg-blue-600 rounded-xl flex items-center justify-center text-white shadow-lg shadow-blue-500/20">
             <Landmark className="w-6 h-6" />
@@ -122,25 +122,43 @@ export default function AdminPage() {
       </aside>
 
       {/* Main Content */}
-      <main className="flex-1 overflow-auto p-8 w-full">
-        {/* Mobile Nav Placeholder */}
-        <div className="md:hidden mb-6 pb-4 border-b border-zinc-200 dark:border-zinc-700">
-          <h1 className="text-xl font-bold text-zinc-900 dark:text-zinc-100 mb-4">Election Admin</h1>
-          <div className="flex gap-2 overflow-x-auto pb-2">
-             {['results', 'staff', 'candidates', 'control'].map((tab) => (
+      <main className="flex-1 overflow-y-auto overflow-x-hidden p-4 sm:p-8 w-full">
+        {/* Mobile Nav */}
+        <div className="md:hidden mb-6 p-4 bg-white dark:bg-zinc-900 rounded-2xl border border-zinc-200 dark:border-zinc-800 shadow-sm">
+          <div className="flex items-center gap-3 mb-4">
+            <div className="w-8 h-8 bg-blue-600 rounded-lg flex items-center justify-center text-white shadow-md shadow-blue-500/20">
+              <Landmark className="w-4 h-4" />
+            </div>
+            <h1 className="text-sm font-black text-zinc-900 dark:text-zinc-50 uppercase tracking-tight">Admin Console</h1>
+          </div>
+          <div className="flex gap-2 overflow-x-auto pb-2 -mx-2 px-2 scrollbar-hide">
+             {[
+               { id: 'results', label: 'Results', icon: BarChart2 },
+               { id: 'staff', label: 'Voters', icon: Users },
+               { id: 'candidates', label: 'Candidates', icon: UserPlus },
+               { id: 'control', label: 'Control', icon: Settings }
+             ].map((tab) => (
                <button
-                 key={tab}
-                 onClick={() => setActiveTab(tab)}
-                 className={`px-4 py-2 rounded-full text-sm font-medium whitespace-nowrap ${
-                   activeTab === tab
-                     ? 'bg-blue-600 text-white'
-                     : 'bg-white dark:bg-zinc-800 text-zinc-600 dark:text-zinc-400 border border-zinc-200 dark:border-zinc-700'
+                 key={tab.id}
+                 onClick={() => setActiveTab(tab.id)}
+                 className={`px-4 py-2 rounded-xl text-xs font-bold whitespace-nowrap flex items-center gap-2 transition-all ${
+                   activeTab === tab.id
+                     ? 'bg-blue-600 text-white shadow-md shadow-blue-500/20'
+                     : 'bg-zinc-50 dark:bg-zinc-800 text-zinc-500 dark:text-zinc-400 border border-zinc-100 dark:border-zinc-700'
                  }`}
                >
-                 {tab.charAt(0).toUpperCase() + tab.slice(1)}
+                 <tab.icon className="w-3.5 h-3.5" />
+                 {tab.label}
                </button>
              ))}
           </div>
+          <button
+            onClick={handleLogout}
+            className="w-full mt-4 flex items-center justify-center px-4 py-2 text-red-600 bg-red-50 dark:bg-red-900/10 rounded-xl transition-colors font-bold text-xs"
+          >
+            <LogOut className="w-3.5 h-3.5 mr-2" />
+            Sign Out
+          </button>
         </div>
 
         {renderContent()}
