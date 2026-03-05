@@ -60,29 +60,10 @@ export async function uploadCandidatesCsv(formData: FormData) {
   const missingSlugs = neededSlugs.filter(slug => !existingSet.has(slug))
  
   if (missingSlugs.length > 0) {
-    // Auto-create missing positions (slug -> Title) to satisfy FK
-    const toTitle = (slug: string) =>
-      slug
-        .split('-')
-        .map(s => s.charAt(0).toUpperCase() + s.slice(1))
-        .join(' ')
- 
-    const insertPayload = missingSlugs.map(slug => ({
-      slug,
-      title: toTitle(slug),
-      description: '',
-      display_order: 999,
-    }))
- 
-    const { error: posInsertErr } = await supabase.from('positions').insert(insertPayload)
-    if (posInsertErr) {
-      console.error('Positions insert error:', posInsertErr)
-      return { error: 'Failed to create required positions: ' + posInsertErr.message }
+    return { 
+      error: `Invalid positions found: ${missingSlugs.join(', ')}. Please ensure positions exist before uploading candidates.` 
     }
   }
-  
-  // Verify positions exist first? 
-  // For simplicity, we assume they do (seeded in SQL) or insert will fail with FK constraint
   
   let { error } = await supabase.from('candidates').insert(candidatesData)
   if (error && error.code === 'PGRST205') {
@@ -145,6 +126,43 @@ export async function deleteCandidate(candidateId: string) {
   revalidatePath('/admin')
   return { success: true }
  }
+
+export async function deleteAllPositions() {
+  const { createServiceClient } = await import('../utils/supabase/serviceRole')
+  const supabaseSR = createServiceClient()
+  
+  // Cascade delete everything
+  await supabaseSR.from('votes').delete().not('id', 'is', null)
+  await supabaseSR.from('candidates').delete().not('id', 'is', null)
+  const { error } = await supabaseSR.from('positions').delete().not('slug', 'is', null)
+  
+  if (error) {
+    console.error('Delete all positions error:', error)
+    return { error: 'Failed to reset positions: ' + error.message }
+  }
+  
+  revalidatePath('/admin')
+  return { success: true }
+}
+
+export async function seedDefaultPositions() {
+  const supabase = await createClient()
+  const defaults = [
+    { slug: 'chairman', title: 'Chairman', description: 'Responsible for leading the committee and overseeing all operations.', display_order: 1 },
+    { slug: 'vice-chairman', title: 'Vice Chairman', description: 'Supports the Chairman and steps in when necessary.', display_order: 2 },
+    { slug: 'treasurer', title: 'Treasurer', description: 'Manages the financial assets and records of the organization.', display_order: 3 },
+    { slug: 'secretary', title: 'Secretary', description: 'Maintains records, minutes, and correspondence.', display_order: 4 },
+    { slug: 'organiser', title: 'Organiser', description: 'Responsible for organizing events and mobilizing members.', display_order: 5 },
+  ]
+  
+  const { error } = await supabase.from('positions').upsert(defaults, { onConflict: 'slug' })
+  if (error) {
+    console.error('Seed positions error:', error)
+    return { error: 'Failed to seed positions: ' + error.message }
+  }
+  revalidatePath('/admin')
+  return { success: true }
+}
 
 export async function getDetailedResults() {
   const supabase = await createClient()

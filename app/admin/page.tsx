@@ -2,7 +2,7 @@
 'use client';
 
 import { uploadStaffCsv, getElectionStats, getStaffList, sendConfirmationEmail, deleteStaff, deleteAllStaff, deleteAllCandidates } from '../actions/admin';
-import { uploadCandidatesCsv, getDetailedResults, deletePosition, getCandidatesList, deleteCandidate } from '../actions/admin_candidates';
+import { uploadCandidatesCsv, getDetailedResults, deletePosition, getCandidatesList, deleteCandidate, deleteAllPositions, seedDefaultPositions } from '../actions/admin_candidates';
 import { useState, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import { Users, UserPlus, Settings, BarChart2, Upload, Mail, Download, RefreshCw, AlertTriangleIcon, AlertTriangle, Landmark, LogOut } from 'lucide-react';
@@ -826,40 +826,81 @@ function CandidateManagement() {
 }
 
 function ElectionControl() {
+  const { show } = useToast();
+  const [isResetting, setIsResetting] = useState(false);
+
+  const handleSystemReset = async () => {
+    if (!confirm('CRITICAL: This will delete ALL staff, ALL candidates, ALL positions, and ALL votes. This cannot be undone. Proceed?')) return;
+    
+    setIsResetting(true);
+    try {
+      // Delete in order of dependencies
+      await deleteAllPositions(); 
+      await deleteAllStaff();
+      
+      // Re-seed core roles
+      await seedDefaultPositions();
+      
+      show({ 
+        title: 'System Reset Complete', 
+        message: 'All junk data wiped and default roles restored. You can now re-upload your Staff and Candidate lists correctly.', 
+        variant: 'success' 
+      });
+    } catch (error) {
+      console.error(error);
+      show({ title: 'Reset Failed', message: 'An error occurred during reset.', variant: 'error' });
+    } finally {
+      setIsResetting(false);
+    }
+  };
+
   return (
     <div>
       <h2 className="text-2xl font-bold text-zinc-900 dark:text-zinc-100 mb-6">Election Control</h2>
-      <div className="bg-white dark:bg-zinc-800 rounded-lg shadow p-6 max-w-xl">
-        <h3 className="text-lg font-semibold mb-4 text-zinc-900 dark:text-zinc-100">Election Status</h3>
-        <div className="flex items-center justify-between p-4 bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-lg mb-6">
-          <div className="flex items-center">
-            <div className="w-3 h-3 bg-green-500 rounded-full mr-3 animate-pulse"></div>
-            <span className="font-medium text-green-800 dark:text-green-300">Active</span>
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+        <div className="bg-white dark:bg-zinc-800 rounded-lg shadow p-6">
+          <h3 className="text-lg font-semibold mb-4 text-zinc-900 dark:text-zinc-100">Election Status</h3>
+          <div className="flex items-center justify-between p-4 bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-lg mb-6">
+            <div className="flex items-center">
+              <div className="w-3 h-3 bg-green-500 rounded-full mr-3 animate-pulse"></div>
+              <span className="font-medium text-green-800 dark:text-green-300">Active</span>
+            </div>
+            <span className="text-sm text-green-700 dark:text-green-400">Ends in 4 days</span>
           </div>
-          <span className="text-sm text-green-700 dark:text-green-400">Ends in 4 days</span>
+          
+          <div className="space-y-4">
+            <button className="w-full py-3 px-4 border border-red-200 dark:border-red-800 text-red-600 dark:text-red-400 rounded-lg hover:bg-red-50 dark:hover:bg-red-900/20 font-medium transition-colors">
+              Pause Election
+            </button>
+            <button className="w-full py-3 px-4 bg-red-600 text-white rounded-lg hover:bg-red-700 font-medium transition-colors">
+              End Election Immediately
+            </button>
+          </div>
         </div>
-        
-        <div className="space-y-4">
-          <button className="w-full py-3 px-4 border border-red-200 dark:border-red-800 text-red-600 dark:text-red-400 rounded-lg hover:bg-red-50 dark:hover:bg-red-900/20 font-medium transition-colors">
-            Pause Election
-          </button>
-          <button className="w-full py-3 px-4 bg-red-600 text-white rounded-lg hover:bg-red-700 font-medium transition-colors">
-            End Election Immediately
-          </button>
-          <button
-            onClick={async () => {
-              const res: any = await deletePosition('welfare')
-              // Toast not available here; minimal feedback via alert to avoid dependency
-              if (res?.success) {
-                alert('Welfare position removed')
-              } else {
-                alert(res?.error || 'Failed to remove welfare position')
-              }
-            }}
-            className="w-full py-3 px-4 bg-zinc-100 dark:bg-zinc-700 text-zinc-800 dark:text-zinc-200 rounded-lg hover:bg-zinc-200 dark:hover:bg-zinc-600 font-medium transition-colors"
-          >
-            Remove Welfare Position
-          </button>
+
+        <div className="bg-white dark:bg-zinc-800 rounded-lg shadow p-6 border border-red-100 dark:border-red-900/30">
+          <div className="flex items-center gap-3 text-red-600 mb-4">
+            <AlertTriangle className="w-6 h-6" />
+            <h3 className="text-lg font-bold">Danger Zone</h3>
+          </div>
+          <p className="text-sm text-zinc-500 dark:text-zinc-400 mb-6">
+            Use these actions to clear incorrect data or reset the entire system for a new election cycle.
+          </p>
+          
+          <div className="space-y-4">
+            <button
+              onClick={handleSystemReset}
+              disabled={isResetting}
+              className="w-full py-3 px-4 bg-red-50 dark:bg-red-900/10 text-red-600 dark:text-red-400 border border-red-200 dark:border-red-800/50 rounded-lg hover:bg-red-600 hover:text-white transition-all font-bold flex items-center justify-center gap-2"
+            >
+              {isResetting ? <RefreshCw className="w-4 h-4 animate-spin" /> : <RefreshCw className="w-4 h-4" />}
+              Full System Reset
+            </button>
+            
+            <p className="text-[10px] text-zinc-400 text-center italic">
+              Warning: Deletes all Staff, Candidates, Positions, and Votes.
+            </p>
+          </div>
         </div>
       </div>
     </div>
