@@ -1,10 +1,12 @@
 
 'use client';
 
-import { uploadStaffCsv, getElectionStats } from '../actions/admin';
+import { uploadStaffCsv, getElectionStats, getStaffList, sendConfirmationEmail, deleteStaff } from '../actions/admin';
+import { uploadCandidatesCsv, getDetailedResults } from '../actions/admin_candidates';
 import { useState, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import { Users, UserPlus, Settings, BarChart2, Upload, Mail, Download, RefreshCw } from 'lucide-react';
+import { useToast } from '../components/Toast';
 
 export default function AdminPage() {
   const [activeTab, setActiveTab] = useState('results');
@@ -144,7 +146,9 @@ function ResultsView() {
     turnout: '0%',
     lastUpdated: new Date()
   });
+  const [detailedResults, setDetailedResults] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(false);
+  const [isElectionActive, setIsElectionActive] = useState(true); // Should fetch from DB/Config
 
   const fetchStats = useCallback(async () => {
     setIsLoading(true);
@@ -158,6 +162,9 @@ function ResultsView() {
           lastUpdated: new Date()
         });
       }
+      
+      const details = await getDetailedResults();
+      setDetailedResults(details || []);
     } catch (error) {
       console.error('Failed to fetch stats:', error);
     } finally {
@@ -195,8 +202,54 @@ function ResultsView() {
       
       <div className="bg-white dark:bg-zinc-800 rounded-lg shadow p-6 mb-6">
         <h3 className="text-lg font-semibold mb-4 text-zinc-900 dark:text-zinc-100">Live Results by Position</h3>
-        <p className="text-zinc-500 dark:text-zinc-400">Results hidden while election is active.</p>
-        <p className="text-xs text-zinc-400 mt-2">Last updated: {stats.lastUpdated.toLocaleTimeString()}</p>
+        <p className="text-xs text-zinc-400 mb-6">Last updated: {stats.lastUpdated.toLocaleTimeString()}</p>
+        
+        {isElectionActive && (
+          <div className="bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 p-4 rounded-md mb-6 flex items-start">
+            <Settings className="w-5 h-5 text-yellow-600 dark:text-yellow-400 mr-3 mt-0.5" />
+            <div>
+              <p className="text-sm font-medium text-yellow-800 dark:text-yellow-300">Election is Active</p>
+              <p className="text-xs text-yellow-700 dark:text-yellow-400 mt-1">
+                These results are visible to Admins only. The public cannot see them until the election ends.
+              </p>
+            </div>
+          </div>
+        )}
+
+        <div className="space-y-8">
+          {detailedResults.map((position) => (
+            <div key={position.id} className="border-b border-zinc-100 dark:border-zinc-700 pb-8 last:border-0 last:pb-0">
+              <h4 className="text-md font-bold text-zinc-800 dark:text-zinc-200 mb-4 uppercase tracking-wide">
+                {position.title}
+              </h4>
+              <div className="space-y-3">
+                {position.candidates.map((candidate: any) => {
+                  const totalVotesForPos = position.candidates.reduce((sum: number, c: any) => sum + c.voteCount, 0);
+                  const percentage = totalVotesForPos > 0 ? Math.round((candidate.voteCount / totalVotesForPos) * 100) : 0;
+                  
+                  return (
+                    <div key={candidate.id} className="relative">
+                      <div className="flex justify-between items-end mb-1">
+                        <span className="text-sm font-medium text-zinc-700 dark:text-zinc-300">{candidate.name}</span>
+                        <span className="text-sm font-bold text-zinc-900 dark:text-zinc-100">{candidate.voteCount} votes ({percentage}%)</span>
+                      </div>
+                      <div className="w-full bg-zinc-100 dark:bg-zinc-700 rounded-full h-2.5 overflow-hidden">
+                        <div 
+                          className="bg-blue-600 h-2.5 rounded-full transition-all duration-500" 
+                          style={{ width: `${percentage}%` }}
+                        ></div>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          ))}
+          
+          {detailedResults.length === 0 && (
+            <p className="text-center text-zinc-500 py-8">No results data available yet.</p>
+          )}
+        </div>
       </div>
     </div>
   );
@@ -213,8 +266,26 @@ function StatCard({ title, value }: { title: string; value: string }) {
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
 function StaffManagement() {
+  const { show } = useToast();
   const [csvFile, setCsvFile] = useState<File | null>(null);
   const [uploadStatus, setUploadStatus] = useState('');
+  const [staffList, setStaffList] = useState<any[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+
+  const fetchStaff = useCallback(async () => {
+    try {
+      const data = await getStaffList();
+      setStaffList(data || []);
+    } catch (error) {
+      console.error('Failed to fetch staff:', error);
+    } finally {
+      setIsLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    fetchStaff();
+  }, [fetchStaff]);
 
   const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files[0]) {
@@ -245,17 +316,45 @@ function StaffManagement() {
       const result: any = await uploadStaffCsv(formData);
       
       if (result.success) {
-        setUploadStatus(`Success! Uploaded ${result.count} staff records.`);
+        setUploadStatus(`Success! Uploaded ${result.count} staff records. Emails sent: ${result.emailsSent}.`);
         setCsvFile(null);
-        // Ideally refresh the list
+        show({ title: 'Upload Complete', message: `Uploaded ${result.count}. Emails sent: ${result.emailsSent}.`, variant: 'success' });
+        fetchStaff(); // Refresh list
       } else {
         setUploadStatus(`Error: ${result.error}`);
+        show({ title: 'Upload Failed', message: result.error, variant: 'error' });
       }
     } catch (err) {
       console.error(err);
       setUploadStatus('An unexpected error occurred.');
+      show({ title: 'Upload Failed', message: 'Unexpected error', variant: 'error' });
     }
   };
+
+  const handleSendEmail = async (staffId: string) => {
+    try {
+      await sendConfirmationEmail(staffId);
+      show({ title: 'Email Sent', message: `Notification sent to ${staffId}`, variant: 'success' });
+    } catch (error) {
+      console.error(error);
+      show({ title: 'Email Failed', message: 'Failed to send email', variant: 'error' });
+    }
+  };
+ 
+   const handleDeleteStaff = async (staffId: string) => {
+     try {
+       const result: any = await deleteStaff(staffId);
+       if (result?.success) {
+         fetchStaff();
+        show({ title: 'Deleted', message: `Staff ${staffId} deleted`, variant: 'success' });
+       } else {
+        show({ title: 'Delete Failed', message: result?.error || 'Failed to delete staff', variant: 'error' });
+       }
+     } catch (error) {
+       console.error(error);
+      show({ title: 'Delete Failed', message: 'Failed to delete staff', variant: 'error' });
+     }
+   };
 
   return (
     <div>
@@ -331,20 +430,52 @@ function StaffManagement() {
               </tr>
             </thead>
             <tbody className="divide-y divide-zinc-200 dark:divide-zinc-700">
-              <tr className="group">
-                <td className="py-3 font-mono text-zinc-900 dark:text-zinc-200">STF-2026-001</td>
-                <td className="py-3 text-zinc-600 dark:text-zinc-400">staff.one@dur.com</td>
-                <td className="py-3"><span className="px-2 py-1 rounded-full text-xs font-medium bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400">Voted</span></td>
-                <td className="py-3 text-sm text-green-600 dark:text-green-400 flex items-center gap-1"><CheckIcon /> Yes</td>
-                <td className="py-3"><button className="text-red-600 hover:text-red-700 text-sm font-medium">Revoke</button></td>
-              </tr>
-               <tr className="group">
-                <td className="py-3 font-mono text-zinc-900 dark:text-zinc-200">STF-2026-002</td>
-                <td className="py-3 text-zinc-600 dark:text-zinc-400">staff.two@dur.com</td>
-                <td className="py-3"><span className="px-2 py-1 rounded-full text-xs font-medium bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-400">Pending</span></td>
-                <td className="py-3 text-sm text-zinc-500">Pending</td>
-                <td className="py-3"><button className="text-blue-600 hover:text-blue-700 text-sm font-medium">Resend Email</button></td>
-              </tr>
+              {isLoading ? (
+                <tr>
+                  <td colSpan={5} className="py-8 text-center text-zinc-500">Loading staff data...</td>
+                </tr>
+              ) : staffList.length === 0 ? (
+                <tr>
+                  <td colSpan={5} className="py-8 text-center text-zinc-500">No staff records found. Upload a CSV to get started.</td>
+                </tr>
+              ) : (
+                staffList.map((staff) => (
+                  <tr key={staff.id || staff.staff_id} className="group hover:bg-zinc-50 dark:hover:bg-zinc-800/50 transition-colors">
+                    <td className="py-3 font-mono text-zinc-900 dark:text-zinc-200">{staff.staff_id}</td>
+                    <td className="py-3 text-zinc-600 dark:text-zinc-400">{staff.email}</td>
+                    <td className="py-3">
+                      {staff.has_voted ? (
+                        <span className="px-2 py-1 rounded-full text-xs font-medium bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400">Voted</span>
+                      ) : (
+                        <span className="px-2 py-1 rounded-full text-xs font-medium bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-400">Pending</span>
+                      )}
+                    </td>
+                    <td className="py-3 text-sm">
+                      {staff.email_sent ? (
+                        <span className="px-2 py-1 rounded-full text-xs font-medium bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400">Yes</span>
+                      ) : (
+                        <span className="px-2 py-1 rounded-full text-xs font-medium bg-zinc-100 text-zinc-800 dark:bg-zinc-800/40 dark:text-zinc-300">No</span>
+                      )}
+                    </td>
+                    <td className="py-3">
+                      {!staff.has_voted && (
+                        <button 
+                          onClick={() => handleSendEmail(staff.staff_id)}
+                          className="text-blue-600 hover:text-blue-700 text-sm font-medium mr-3"
+                        >
+                          Resend Email
+                        </button>
+                      )}
+                      <button 
+                        onClick={() => handleDeleteStaff(staff.staff_id)}
+                        className="text-red-600 hover:text-red-700 text-sm font-medium"
+                      >
+                        Delete
+                      </button>
+                    </td>
+                  </tr>
+                ))
+              )}
             </tbody>
           </table>
         </div>
@@ -360,14 +491,88 @@ function CheckIcon() {
 }
 
 function CandidateManagement() {
+  const [csvFile, setCsvFile] = useState<File | null>(null);
+  const [uploadStatus, setUploadStatus] = useState('');
+
+  const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files && e.target.files[0]) {
+      setCsvFile(e.target.files[0]);
+    }
+  };
+
+  const downloadTemplate = () => {
+    const csvContent = "data:text/csv;charset=utf-8,name,position_slug,role,bio,image_url\nJohn Doe,chairman,Director,A leader...,https://example.com/pic.jpg";
+    const encodedUri = encodeURI(csvContent);
+    const link = document.createElement("a");
+    link.setAttribute("href", encodedUri);
+    link.setAttribute("download", "candidates_template.csv");
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
+
+  const handleProcessFile = async () => {
+    if (!csvFile) return;
+    
+    setUploadStatus('Uploading...');
+    const formData = new FormData();
+    formData.append('file', csvFile);
+    
+    try {
+      const result: any = await uploadCandidatesCsv(formData);
+      if (result.success) {
+        setUploadStatus(`Success! Uploaded ${result.count} candidates.`);
+        setCsvFile(null);
+      } else {
+        setUploadStatus(`Error: ${result.error}`);
+      }
+    } catch (err) {
+      console.error(err);
+      setUploadStatus('An unexpected error occurred.');
+    }
+  };
+
   return (
     <div>
       <h2 className="text-2xl font-bold text-zinc-900 dark:text-zinc-100 mb-6">Manage Candidates</h2>
-      <div className="bg-white dark:bg-zinc-800 rounded-lg shadow p-6">
-        <p className="text-zinc-500 dark:text-zinc-400 mb-4">Functionality to add/edit candidates will be implemented here.</p>
-        <button className="bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700 transition-colors">
-          Add New Candidate
-        </button>
+      
+      <div className="bg-white dark:bg-zinc-800 rounded-lg shadow p-6 mb-8 border border-zinc-200 dark:border-zinc-700">
+        <div className="flex justify-between items-center mb-4">
+          <h3 className="text-lg font-semibold text-zinc-900 dark:text-zinc-100">Bulk Upload Candidates</h3>
+          <button onClick={downloadTemplate} className="text-sm text-blue-600 hover:text-blue-700 flex items-center">
+            <Download className="w-4 h-4 mr-1" /> Template
+          </button>
+        </div>
+        
+        <p className="text-sm text-zinc-500 dark:text-zinc-400 mb-4">
+          Upload CSV with columns: <code className="bg-zinc-100 dark:bg-zinc-700 px-1 rounded">name</code>, <code className="bg-zinc-100 dark:bg-zinc-700 px-1 rounded">position_slug</code> (e.g. 'chairman'), <code className="bg-zinc-100 dark:bg-zinc-700 px-1 rounded">role</code>, <code className="bg-zinc-100 dark:bg-zinc-700 px-1 rounded">bio</code>, <code className="bg-zinc-100 dark:bg-zinc-700 px-1 rounded">image_url</code>.
+        </p>
+
+        {uploadStatus && (
+          <div className={`mb-4 p-3 rounded-md text-sm ${uploadStatus.includes('Error') ? 'bg-red-50 text-red-700' : 'bg-green-50 text-green-700'}`}>
+            {uploadStatus}
+          </div>
+        )}
+
+        <div className="flex flex-col sm:flex-row gap-4 items-center">
+          <label className="flex-1 w-full flex flex-col items-center px-4 py-6 bg-white dark:bg-zinc-900 text-blue rounded-lg shadow-lg tracking-wide uppercase border border-blue cursor-pointer hover:bg-blue-50 dark:hover:bg-zinc-800 border-dashed border-2 border-zinc-300 dark:border-zinc-600 hover:border-blue-500 transition-colors">
+            <Upload className="w-8 h-8 text-blue-500 mb-2" />
+            <span className="text-sm leading-normal text-zinc-600 dark:text-zinc-400">
+              {csvFile ? csvFile.name : 'Select a file'}
+            </span>
+            <input type='file' className="hidden" accept=".csv" onChange={handleFileUpload} />
+          </label>
+          
+          <button 
+            onClick={handleProcessFile}
+            disabled={!csvFile}
+            className={`px-6 py-3 rounded-lg font-medium transition-colors ${
+              csvFile ? 'bg-blue-600 text-white hover:bg-blue-700' : 'bg-zinc-200 text-zinc-400 cursor-not-allowed dark:bg-zinc-700'
+            }`}
+          >
+            Upload
+          </button>
+        </div>
       </div>
     </div>
   );

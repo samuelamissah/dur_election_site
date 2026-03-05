@@ -8,6 +8,7 @@ import ElectionBanner from '../components/ElectionBanner';
 
 export default function SuccessPage() {
   const [refId, setRefId] = useState('');
+  const [showModal, setShowModal] = useState(true);
 
   useEffect(() => {
     setRefId(Math.random().toString(36).substring(2, 15).toUpperCase());
@@ -48,6 +49,33 @@ export default function SuccessPage() {
           </Link>
         </div>
       </main>
+ 
+      {showModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
+          <div className="w-full max-w-md rounded-lg bg-white dark:bg-zinc-900 shadow-xl border border-zinc-200 dark:border-zinc-800">
+            <div className="p-6 text-center">
+              <div className="flex justify-center mb-4">
+                <CheckCircle className="w-12 h-12 text-green-600" />
+              </div>
+              <h2 className="text-xl font-bold text-zinc-900 dark:text-zinc-100 mb-2">Your Vote Was Recorded</h2>
+              <p className="text-sm text-zinc-600 dark:text-zinc-400 mb-4">
+                Thank you. A receipt has been generated below. You may close this window.
+              </p>
+              {refId && (
+                <div className="bg-zinc-100 dark:bg-zinc-800 rounded-md p-3 mb-4 text-sm text-zinc-600 dark:text-zinc-300">
+                  Reference ID: <span className="font-mono font-semibold text-zinc-900 dark:text-zinc-100">{refId}</span>
+                </div>
+              )}
+              <button
+                onClick={() => setShowModal(false)}
+                className="w-full bg-green-600 hover:bg-green-700 text-white font-semibold py-2 px-4 rounded-md transition-colors"
+              >
+                Close
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
