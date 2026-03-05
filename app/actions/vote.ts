@@ -27,6 +27,9 @@ export async function submitVote(selections: Record<string, string>) {
 
   const supabase = await createClient()
 
+  // Success!
+  const refId = 'DUR-' + Math.random().toString(36).substring(2, 9).toUpperCase()
+
   // Try RPC first (best: true transaction)
   const { error: rpcError } = await supabase.rpc('submit_ballot', {
     p_staff_id: staffId,
@@ -85,5 +88,5 @@ export async function submitVote(selections: Record<string, string>) {
 
   // Success!
   await sendThankYouEmail(staffId)
-  return { success: true }
+  return { success: true, refId }
 }

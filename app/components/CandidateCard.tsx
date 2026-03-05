@@ -1,6 +1,14 @@
 
 import Image from 'next/image';
-import { Candidate } from '../lib/data';
+import { User, Check } from 'lucide-react';
+
+interface Candidate {
+  id: string;
+  name: string;
+  role?: string;
+  bio?: string;
+  imageUrl?: string;
+}
 
 interface CandidateCardProps {
   candidate: Candidate;
@@ -12,62 +20,80 @@ export default function CandidateCard({ candidate, isSelected, onSelect }: Candi
   const safeSrc = (() => {
     const u = candidate.imageUrl || '';
     const s = u.trim().replace(/[)\s]+$/, '');
-    if (!s || !s.startsWith('http')) return '/placeholder.jpg';
+    if (!s || !s.startsWith('http')) return '';
     return s;
   })();
-  const hasImage = safeSrc !== '/placeholder.jpg';
+
   const initials = candidate.name
     .split(' ')
     .filter(Boolean)
     .slice(0, 2)
     .map(s => s[0]?.toUpperCase() || '')
     .join('');
+
   return (
     <div 
-      className={`relative flex flex-col items-center p-6 bg-white dark:bg-zinc-800 rounded-xl border-2 transition-all cursor-pointer hover:shadow-lg ${
+      className={`group relative flex flex-col items-center p-8 bg-white dark:bg-zinc-800/50 rounded-2xl border-2 transition-all duration-300 cursor-pointer overflow-hidden ${
         isSelected 
-          ? 'border-blue-600 bg-blue-50 dark:bg-blue-900/20 shadow-md' 
-          : 'border-zinc-200 dark:border-zinc-700 hover:border-blue-400 dark:hover:border-blue-500'
+          ? 'border-blue-600 ring-4 ring-blue-600/10 bg-blue-50/30 dark:bg-blue-900/10 shadow-xl shadow-blue-500/10 scale-[1.02]' 
+          : 'border-zinc-100 dark:border-zinc-800 hover:border-blue-200 dark:hover:border-blue-900/50 hover:bg-zinc-50 dark:hover:bg-zinc-800/80'
       }`}
       onClick={() => onSelect(candidate.id)}
     >
-      <div className="relative w-24 h-24 mb-4 rounded-full overflow-hidden border-2 border-zinc-100 dark:border-zinc-700 shadow-sm">
-        {hasImage ? (
-          <Image
-            src={safeSrc}
-            alt={candidate.name}
-            fill
-            className="object-cover"
-          />
-        ) : (
-          <div className="w-full h-full flex items-center justify-center bg-zinc-200 dark:bg-zinc-700 text-zinc-700 dark:text-zinc-200 font-bold text-xl">
-            {initials || '?'}
+      {/* Selection Badge */}
+      <div className={`absolute top-4 right-4 w-8 h-8 rounded-full flex items-center justify-center transition-all duration-300 ${
+        isSelected ? 'bg-blue-600 text-white scale-110' : 'bg-zinc-100 dark:bg-zinc-800 text-zinc-300 dark:text-zinc-600 scale-90'
+      }`}>
+        <Check className={`w-5 h-5 ${isSelected ? 'opacity-100' : 'opacity-0'}`} />
+      </div>
+
+      <div className="relative w-32 h-32 mb-6 group-hover:scale-105 transition-transform duration-500">
+        <div className={`absolute inset-0 rounded-full border-4 transition-colors duration-300 ${
+          isSelected ? 'border-blue-600/20' : 'border-zinc-100 dark:border-zinc-800'
+        }`} />
+        <div className="w-full h-full rounded-full overflow-hidden shadow-inner relative">
+          {safeSrc ? (
+            <Image
+              src={safeSrc}
+              alt={candidate.name}
+              fill
+              className="object-cover"
+            />
+          ) : (
+            <div className="w-full h-full flex flex-col items-center justify-center bg-zinc-100 dark:bg-zinc-800 text-zinc-400 dark:text-zinc-600">
+              <User className="w-12 h-12 mb-1" />
+              <span className="text-xs font-bold tracking-tighter">{initials}</span>
+            </div>
+          )}
+        </div>
+      </div>
+      
+      <div className="text-center space-y-2 mb-6">
+        <h3 className={`text-xl font-extrabold transition-colors duration-300 ${
+          isSelected ? 'text-blue-600 dark:text-blue-400' : 'text-zinc-900 dark:text-zinc-100'
+        }`}>
+          {candidate.name}
+        </h3>
+        
+        {candidate.role && (
+          <div className="inline-block px-3 py-1 bg-zinc-100 dark:bg-zinc-800 text-[10px] font-black uppercase tracking-widest text-zinc-500 dark:text-zinc-400 rounded-full border border-zinc-200 dark:border-zinc-700">
+            {candidate.role}
           </div>
         )}
       </div>
       
-      <h3 className="text-lg font-bold text-zinc-900 dark:text-zinc-100 text-center mb-1">
-        {candidate.name}
-      </h3>
-      
-      <p className="text-sm font-medium text-blue-600 dark:text-blue-400 mb-2">
-        {candidate.role}
-      </p>
-      
-      <p className="text-sm text-zinc-600 dark:text-zinc-400 text-center mb-6 line-clamp-3">
-        {candidate.bio}
-      </p>
-      
-      <div className="mt-auto">
-        <div className={`w-6 h-6 rounded-full border-2 flex items-center justify-center transition-colors ${
-          isSelected 
-            ? 'border-blue-600 bg-blue-600' 
-            : 'border-zinc-300 dark:border-zinc-600'
-        }`}>
-          {isSelected && (
-            <div className="w-2.5 h-2.5 rounded-full bg-white" />
-          )}
-        </div>
+      {candidate.bio && (
+        <p className="text-sm text-zinc-500 dark:text-zinc-400 text-center line-clamp-3 leading-relaxed px-2 italic">
+          &ldquo;{candidate.bio}&rdquo;
+        </p>
+      )}
+
+      <div className={`mt-8 w-full py-3 px-6 rounded-xl text-sm font-bold transition-all duration-300 flex items-center justify-center gap-2 ${
+        isSelected 
+          ? 'bg-blue-600 text-white shadow-lg shadow-blue-600/20' 
+          : 'bg-zinc-100 dark:bg-zinc-800 text-zinc-600 dark:text-zinc-400 group-hover:bg-blue-50 group-hover:text-blue-600'
+      }`}>
+        {isSelected ? 'Selected for Ballot' : 'Choose Candidate'}
       </div>
     </div>
   );

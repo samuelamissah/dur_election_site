@@ -2,11 +2,12 @@
 'use client';
 
 import { uploadStaffCsv, getElectionStats, getStaffList, sendConfirmationEmail, deleteStaff, deleteAllStaff, deleteAllCandidates } from '../actions/admin';
-import { uploadCandidatesCsv, getDetailedResults, deletePosition } from '../actions/admin_candidates';
+import { uploadCandidatesCsv, getDetailedResults, deletePosition, getCandidatesList, deleteCandidate } from '../actions/admin_candidates';
 import { useState, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
-import { Users, UserPlus, Settings, BarChart2, Upload, Mail, Download, RefreshCw } from 'lucide-react';
+import { Users, UserPlus, Settings, BarChart2, Upload, Mail, Download, RefreshCw, AlertTriangleIcon, AlertTriangle, Landmark, LogOut } from 'lucide-react';
 import { useToast } from '../components/Toast';
+
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
 export default function AdminPage() {
@@ -14,7 +15,6 @@ export default function AdminPage() {
   const router = useRouter();
 
   useEffect(() => {
-    // Check for admin session
     const session = localStorage.getItem('admin_session');
     if (!session) {
       router.push('/admin/login');
@@ -42,73 +42,82 @@ export default function AdminPage() {
   };
 
   return (
-    <div className="flex h-screen bg-zinc-100 dark:bg-zinc-900 font-sans antialiased">
+    <div className="flex h-[calc(100vh-65px)] bg-zinc-50 dark:bg-zinc-950 font-sans antialiased overflow-hidden">
       {/* Sidebar */}
-      <aside className="w-64 bg-white dark:bg-zinc-800 border-r border-zinc-200 dark:border-zinc-700 flex flex-col hidden md:flex">
-        <div className="p-6 border-b border-zinc-200 dark:border-zinc-700">
-          <h1 className="text-xl font-bold text-zinc-900 dark:text-zinc-100">Election Admin</h1>
+      <aside className="w-72 bg-white dark:bg-zinc-900 border-r border-zinc-200 dark:border-zinc-800 flex flex-col hidden md:flex shadow-sm">
+        <div className="p-8 border-b border-zinc-100 dark:border-zinc-800 flex items-center gap-3">
+          <div className="w-10 h-10 bg-blue-600 rounded-xl flex items-center justify-center text-white shadow-lg shadow-blue-500/20">
+            <Landmark className="w-6 h-6" />
+          </div>
+          <div className="flex flex-col">
+            <h1 className="text-sm font-black text-zinc-900 dark:text-zinc-50 uppercase tracking-tight">Admin Console</h1>
+            <span className="text-[10px] text-zinc-400 font-bold uppercase tracking-widest">Election Portal</span>
+          </div>
         </div>
         
-        <nav className="flex-1 p-4 space-y-2">
+        <nav className="flex-1 p-6 space-y-2 overflow-y-auto">
+          <p className="text-[10px] font-black uppercase tracking-[0.2em] text-zinc-400 mb-4 px-4">Overview</p>
           <button
             onClick={() => setActiveTab('results')}
-            className={`w-full flex items-center px-4 py-3 rounded-lg transition-colors ${
+            className={`w-full flex items-center px-4 py-3.5 rounded-xl transition-all duration-200 ${
               activeTab === 'results' 
-                ? 'bg-blue-50 text-blue-600 dark:bg-blue-900/20 dark:text-blue-400 font-medium' 
-                : 'text-zinc-600 dark:text-zinc-400 hover:bg-zinc-50 dark:hover:bg-zinc-700'
+                ? 'bg-blue-600 text-white shadow-lg shadow-blue-500/20 font-bold' 
+                : 'text-zinc-500 dark:text-zinc-400 hover:bg-zinc-50 dark:hover:bg-zinc-800'
             }`}
           >
-            <BarChart2 className="w-5 h-5 mr-3" />
-            Results & Turnout
+            <BarChart2 className={`w-5 h-5 mr-3 ${activeTab === 'results' ? 'text-white' : 'text-zinc-400'}`} />
+            Live Results
           </button>
           
+          <div className="h-4" />
+          <p className="text-[10px] font-black uppercase tracking-[0.2em] text-zinc-400 mb-4 px-4">Data Management</p>
           <button
             onClick={() => setActiveTab('staff')}
-            className={`w-full flex items-center px-4 py-3 rounded-lg transition-colors ${
+            className={`w-full flex items-center px-4 py-3.5 rounded-xl transition-all duration-200 ${
               activeTab === 'staff' 
-                ? 'bg-blue-50 text-blue-600 dark:bg-blue-900/20 dark:text-blue-400 font-medium' 
-                : 'text-zinc-600 dark:text-zinc-400 hover:bg-zinc-50 dark:hover:bg-zinc-700'
+                ? 'bg-blue-600 text-white shadow-lg shadow-blue-500/20 font-bold' 
+                : 'text-zinc-500 dark:text-zinc-400 hover:bg-zinc-50 dark:hover:bg-zinc-800'
             }`}
           >
-            <Users className="w-5 h-5 mr-3" />
-            Manage Staff IDs
+            <Users className={`w-5 h-5 mr-3 ${activeTab === 'staff' ? 'text-white' : 'text-zinc-400'}`} />
+            Voter Registry
           </button>
           
           <button
             onClick={() => setActiveTab('candidates')}
-            className={`w-full flex items-center px-4 py-3 rounded-lg transition-colors ${
+            className={`w-full flex items-center px-4 py-3.5 rounded-xl transition-all duration-200 ${
               activeTab === 'candidates' 
-                ? 'bg-blue-50 text-blue-600 dark:bg-blue-900/20 dark:text-blue-400 font-medium' 
-                : 'text-zinc-600 dark:text-zinc-400 hover:bg-zinc-50 dark:hover:bg-zinc-700'
+                ? 'bg-blue-600 text-white shadow-lg shadow-blue-500/20 font-bold' 
+                : 'text-zinc-500 dark:text-zinc-400 hover:bg-zinc-50 dark:hover:bg-zinc-800'
             }`}
           >
-            <UserPlus className="w-5 h-5 mr-3" />
-            Candidates
+            <UserPlus className={`w-5 h-5 mr-3 ${activeTab === 'candidates' ? 'text-white' : 'text-zinc-400'}`} />
+            Candidate List
           </button>
           
+          <div className="h-4" />
+          <p className="text-[10px] font-black uppercase tracking-[0.2em] text-zinc-400 mb-4 px-4">Settings</p>
           <button
             onClick={() => setActiveTab('control')}
-            className={`w-full flex items-center px-4 py-3 rounded-lg transition-colors ${
+            className={`w-full flex items-center px-4 py-3.5 rounded-xl transition-all duration-200 ${
               activeTab === 'control' 
-                ? 'bg-blue-50 text-blue-600 dark:bg-blue-900/20 dark:text-blue-400 font-medium' 
-                : 'text-zinc-600 dark:text-zinc-400 hover:bg-zinc-50 dark:hover:bg-zinc-700'
+                ? 'bg-blue-600 text-white shadow-lg shadow-blue-500/20 font-bold' 
+                : 'text-zinc-500 dark:text-zinc-400 hover:bg-zinc-50 dark:hover:bg-zinc-800'
             }`}
           >
-            <Settings className="w-5 h-5 mr-3" />
-            Election Control
+            <Settings className={`w-5 h-5 mr-3 ${activeTab === 'control' ? 'text-white' : 'text-zinc-400'}`} />
+            System Control
           </button>
         </nav>
-        
-        <div className="p-4 border-t border-zinc-200 dark:border-zinc-700">
-          <div className="flex items-center gap-3 px-4 py-2">
-            <div className="w-8 h-8 rounded-full bg-zinc-200 dark:bg-zinc-700 flex items-center justify-center text-xs font-bold text-zinc-600 dark:text-zinc-300">
-              EC
-            </div>
-            <div>
-              <p className="text-sm font-medium text-zinc-900 dark:text-zinc-100">Admin User</p>
-              <button onClick={handleLogout} className="text-xs text-red-500 hover:underline">Sign Out</button>
-            </div>
-          </div>
+
+        <div className="p-6 border-t border-zinc-100 dark:border-zinc-800">
+          <button
+            onClick={handleLogout}
+            className="w-full flex items-center px-4 py-3 text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-xl transition-colors font-bold text-sm group"
+          >
+            <LogOut className="w-5 h-5 mr-3 group-hover:translate-x-1 transition-transform" />
+            Sign Out
+          </button>
         </div>
       </aside>
 
@@ -181,7 +190,7 @@ function ResultsView() {
     return () => clearInterval(interval);
   }, [fetchStats]);
   useEffect(() => {
-    setHydrated(true);
+    queueMicrotask(() => setHydrated(true));
   }, []);
 
   return (
@@ -229,14 +238,14 @@ function ResultsView() {
               </h4>
               <div className="space-y-3">
                 {position.candidates.map((candidate: any) => {
-                  const totalVotesForPos = position.candidates.reduce((sum: number, c: any) => sum + c.voteCount, 0);
-                  const percentage = totalVotesForPos > 0 ? Math.round((candidate.voteCount / totalVotesForPos) * 100) : 0;
+                  const totalVotesForPos = position.candidates.reduce((sum: number, c: any) => sum + (c.voteCount || 0), 0);
+                  const percentage = totalVotesForPos > 0 ? Math.round(((candidate.voteCount || 0) / totalVotesForPos) * 100) : 0;
                   
                   return (
                     <div key={candidate.id} className="relative">
                       <div className="flex justify-between items-end mb-1">
                         <span className="text-sm font-medium text-zinc-700 dark:text-zinc-300">{candidate.name}</span>
-                        <span className="text-sm font-bold text-zinc-900 dark:text-zinc-100">{candidate.voteCount} votes ({percentage}%)</span>
+                        <span className="text-sm font-bold text-zinc-900 dark:text-zinc-100">{candidate.voteCount || 0} votes ({percentage}%)</span>
                       </div>
                       <div className="w-full bg-zinc-100 dark:bg-zinc-700 rounded-full h-2.5 overflow-hidden">
                         <div 
@@ -276,6 +285,7 @@ function StaffManagement() {
   const [uploadStatus, setUploadStatus] = useState('');
   const [staffList, setStaffList] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
 
   const fetchStaff = useCallback(async () => {
     try {
@@ -424,21 +434,59 @@ function StaffManagement() {
               Send Confirmations
             </button>
             <button
-              onClick={async () => {
-                const res: any = await deleteAllStaff();
-                if (res?.success) {
-                  show({ title: 'Deleted', message: 'All staff deleted', variant: 'success' });
-                  fetchStaff();
-                } else {
-                  show({ title: 'Delete Failed', message: res?.error || 'Failed to delete all staff', variant: 'error' });
-                }
-              }}
+              onClick={() => setShowDeleteConfirm(true)}
               className="w-full sm:w-auto bg-red-600 text-white px-4 py-2 rounded-md hover:bg-red-700 transition-colors"
             >
               Delete All
             </button>
           </div>
         </div>
+
+        {/* Delete All Confirmation Modal */}
+        {showDeleteConfirm && (
+          <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+            <div className="bg-white dark:bg-zinc-800 rounded-xl shadow-xl max-w-md w-full p-6 border border-zinc-200 dark:border-zinc-700">
+              <div className="flex items-center gap-3 text-red-600 mb-4">
+                <AlertTriangle className="w-8 h-8" />
+                <h3 className="text-xl font-bold">Confirm Mass Deletion</h3>
+              </div>
+              
+              <div className="space-y-3 mb-8">
+                <p className="text-zinc-700 dark:text-zinc-300">
+                  You are about to delete <span className="font-bold">ALL staff records</span> and <span className="font-bold">ALL associated votes</span>.
+                </p>
+                <p className="text-sm bg-red-50 dark:bg-red-900/20 text-red-700 dark:text-red-400 p-3 rounded-lg border border-red-100 dark:border-red-800/50">
+                  <strong>Warning:</strong> This action is permanent and cannot be undone. All election progress will be lost.
+                </p>
+              </div>
+
+              <div className="flex gap-3">
+                <button
+                  onClick={() => setShowDeleteConfirm(false)}
+                  className="flex-1 px-4 py-2 border border-zinc-200 dark:border-zinc-700 rounded-lg text-zinc-600 dark:text-zinc-400 hover:bg-zinc-50 dark:hover:bg-zinc-700 transition-colors font-medium"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={async () => {
+                    setShowDeleteConfirm(false);
+                    const res: any = await deleteAllStaff();
+                    if (res?.success) {
+                      show({ title: 'System Reset', message: 'All staff and votes have been cleared.', variant: 'success' });
+                      fetchStaff();
+                    } else {
+                      show({ title: 'Action Failed', message: res?.error || 'Failed to delete all staff', variant: 'error' });
+                    }
+                  }}
+                  className="flex-1 px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors font-bold shadow-lg shadow-red-200 dark:shadow-none"
+                >
+                  Yes, Delete All
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
         <div className="overflow-x-auto">
           <table className="w-full text-left min-w-[600px]">
             <thead>
@@ -514,7 +562,25 @@ function CheckIcon() {
 function CandidateManagement() {
   const [csvFile, setCsvFile] = useState<File | null>(null);
   const [uploadStatus, setUploadStatus] = useState('');
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [candidatesList, setCandidatesList] = useState<any[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
   const { show } = useToast();
+
+  const fetchCandidates = useCallback(async () => {
+    try {
+      const data = await getCandidatesList();
+      setCandidatesList(data || []);
+    } catch (error) {
+      console.error('Failed to fetch candidates:', error);
+    } finally {
+      setIsLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    fetchCandidates();
+  }, [fetchCandidates]);
 
   const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files[0]) {
@@ -545,12 +611,28 @@ function CandidateManagement() {
       if (result.success) {
         setUploadStatus(`Success! Uploaded ${result.count} candidates.`);
         setCsvFile(null);
+        fetchCandidates(); // Refresh list
       } else {
         setUploadStatus(`Error: ${result.error}`);
       }
     } catch (err) {
       console.error(err);
       setUploadStatus('An unexpected error occurred.');
+    }
+  };
+
+  const handleDeleteCandidate = async (candidateId: string) => {
+    try {
+      const result: any = await deleteCandidate(candidateId);
+      if (result?.success) {
+        fetchCandidates();
+        show({ title: 'Candidate Deleted', message: 'The candidate record has been removed.', variant: 'success' });
+      } else {
+        show({ title: 'Delete Failed', message: result?.error || 'Failed to delete candidate', variant: 'error' });
+      }
+    } catch (error) {
+      console.error(error);
+      show({ title: 'Delete Failed', message: 'An unexpected error occurred.', variant: 'error' });
     }
   };
 
@@ -595,21 +677,133 @@ function CandidateManagement() {
             Upload
           </button>
           <button
-            onClick={async () => {
-              const res: any = await deleteAllCandidates();
-              if (res?.success) {
-                show({ title: 'Deleted', message: 'All candidates deleted', variant: 'success' });
-              } else {
-                show({ title: 'Delete Failed', message: res?.error || 'Failed to delete all candidates', variant: 'error' });
-              }
-            }}
+            onClick={() => setShowDeleteConfirm(true)}
             className="px-6 py-3 rounded-lg font-medium bg-red-600 text-white hover:bg-red-700 transition-colors"
           >
             Delete All
           </button>
         </div>
       </div>
+
+      {/* Delete All Candidates Confirmation Modal */}
+      {showDeleteConfirm && (
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+          <div className="bg-white dark:bg-zinc-800 rounded-xl shadow-xl max-w-md w-full p-6 border border-zinc-200 dark:border-zinc-700">
+            <div className="flex items-center gap-3 text-red-600 mb-4">
+              <AlertTriangle className="w-8 h-8" />
+              <h3 className="text-xl font-bold">Delete All Candidates?</h3>
+            </div>
+            
+            <div className="space-y-3 mb-8">
+              <p className="text-zinc-700 dark:text-zinc-300">
+                This will remove <span className="font-bold">ALL candidates</span> from the database.
+              </p>
+              <p className="text-sm bg-red-50 dark:bg-red-900/20 text-red-700 dark:text-red-400 p-3 rounded-lg border border-red-100 dark:border-red-800/50">
+                <strong>Important:</strong> This will also clear any votes associated with these candidates to maintain database integrity.
+              </p>
+            </div>
+
+            <div className="flex gap-3">
+              <button
+                onClick={() => setShowDeleteConfirm(false)}
+                className="flex-1 px-4 py-2 border border-zinc-200 dark:border-zinc-700 rounded-lg text-zinc-600 dark:text-zinc-400 hover:bg-zinc-50 dark:hover:bg-zinc-700 transition-colors font-medium"
+              >
+                Cancel
+              </button>
+              <button
+            onClick={async () => {
+              setShowDeleteConfirm(false);
+              const res: any = await deleteAllCandidates();
+              if (res?.success) {
+                show({ title: 'Candidates Cleared', message: 'All candidate records have been deleted.', variant: 'success' });
+                fetchCandidates();
+              } else {
+                show({ title: 'Action Failed', message: res?.error || 'Failed to delete all candidates', variant: 'error' });
+              }
+            }}
+            className="flex-1 px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors font-bold"
+          >
+            Confirm Delete
+          </button>
+        </div>
+      </div>
     </div>
+  )}
+
+  {/* Candidates List Table */}
+  <div className="bg-white dark:bg-zinc-800 rounded-lg shadow overflow-hidden">
+    <div className="p-6 border-b border-zinc-200 dark:border-zinc-700">
+      <h3 className="text-lg font-semibold text-zinc-900 dark:text-zinc-100">Registered Candidates</h3>
+    </div>
+    <div className="overflow-x-auto">
+      <table className="w-full text-left min-w-[700px]">
+        <thead>
+          <tr className="border-b border-zinc-200 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-900/50">
+            <th className="px-6 py-3 font-medium text-zinc-500 dark:text-zinc-400">Candidate</th>
+            <th className="px-6 py-3 font-medium text-zinc-500 dark:text-zinc-400">Position</th>
+            <th className="px-6 py-3 font-medium text-zinc-500 dark:text-zinc-400">Role/Title</th>
+            <th className="px-6 py-3 font-medium text-zinc-500 dark:text-zinc-400">Actions</th>
+          </tr>
+        </thead>
+        <tbody className="divide-y divide-zinc-200 dark:divide-zinc-700">
+          {isLoading ? (
+            <tr>
+              <td colSpan={4} className="px-6 py-12 text-center text-zinc-500">Loading candidates...</td>
+            </tr>
+          ) : candidatesList.length === 0 ? (
+            <tr>
+              <td colSpan={4} className="px-6 py-12 text-center text-zinc-500">No candidates found. Upload a CSV to get started.</td>
+            </tr>
+          ) : (
+            candidatesList.map((candidate) => (
+              <tr key={candidate.id} className="group hover:bg-zinc-50 dark:hover:bg-zinc-800/50 transition-colors">
+                <td className="px-6 py-4">
+                  <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 rounded-full bg-blue-100 dark:bg-blue-900/30 flex items-center justify-center text-blue-600 dark:text-blue-400 font-bold overflow-hidden border border-zinc-200 dark:border-zinc-700">
+                      {candidate.image_url ? (
+                        <img 
+                          src={candidate.image_url} 
+                          alt={candidate.name} 
+                          className="w-full h-full object-cover"
+                          onError={(e) => {
+                            (e.target as any).style.display = 'none';
+                            (e.target as any).parentElement.innerText = candidate.name.charAt(0);
+                          }}
+                        />
+                      ) : (
+                        candidate.name.split(' ').map((n: string) => n[0]).join('').toUpperCase().slice(0, 2)
+                      )}
+                    </div>
+                    <div>
+                      <p className="font-medium text-zinc-900 dark:text-zinc-100">{candidate.name}</p>
+                      <p className="text-xs text-zinc-500 truncate max-w-[200px]">{candidate.bio || 'No bio provided'}</p>
+                    </div>
+                  </div>
+                </td>
+                <td className="px-6 py-4">
+                  <span className="px-2.5 py-1 rounded-full text-xs font-medium bg-zinc-100 dark:bg-zinc-700 text-zinc-800 dark:text-zinc-200 border border-zinc-200 dark:border-zinc-600">
+                    {candidate.positions?.title || candidate.position_id}
+                  </span>
+                </td>
+                <td className="px-6 py-4 text-sm text-zinc-600 dark:text-zinc-400">
+                  {candidate.role || '—'}
+                </td>
+                <td className="px-6 py-4">
+                  <button 
+                    onClick={() => handleDeleteCandidate(candidate.id)}
+                    className="text-red-600 hover:text-red-700 text-sm font-medium flex items-center gap-1 transition-colors"
+                  >
+                    Delete
+                  </button>
+                </td>
+              </tr>
+            ))
+          )}
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
   );
 }
 

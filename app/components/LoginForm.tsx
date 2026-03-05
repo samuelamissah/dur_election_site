@@ -4,6 +4,7 @@
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { loginWithStaffId } from '../actions/auth';
+import { ShieldCheck, User, ArrowRight, Loader2 } from 'lucide-react';
 
 export default function LoginForm() {
   const [staffId, setStaffId] = useState('');
@@ -25,103 +26,82 @@ export default function LoginForm() {
     formData.append('staffId', staffId);
 
     try {
-      // In a Server Action, we can return errors or redirects.
-      // Since redirects happen on the server, if we get here, it's an error or void.
-      // However, typical pattern for next/navigation redirect inside server action
-      // throws an error that Next.js catches to perform the redirect.
-      // So we need to be careful.
-      // Better: let the server action return an object { error?: string }
-      // and perform redirect on client if success, OR use redirect() on server
-      // which will cause this fetch to 'fail' or navigate.
-      
-      // Let's assume we modified loginWithStaffId to NOT redirect on success but return success: true
-      // Wait, I implemented redirect() in the action.
-      // So client-side invocation might catch a NEXT_REDIRECT error or just navigate.
-      // Actually, invoking a server action that redirects:
-      // The promise will resolve but the router will handle the navigation.
-      
-      // But wait, the previous implementation of loginWithStaffId DOES redirect.
-      // Let's modify the call to be wrapped or handle it.
-      
-      // Actually, calling a Server Action that redirects from a Client Component 
-      // is standard.
-      
-      // Let's wrap in a transition if we want pending state, but we have isLoading.
-      
-      // Issue: The Server Action `loginWithStaffId` uses `redirect()`.
-      // When called from a Client Component, if `redirect()` is called, 
-      // it might not throw in the same way as in Server Components, 
-      // but it should work.
-      
-      // However, to get the error message back, we need to handle the return value.
-      // If it redirects, it won't return.
-      
-      // Let's refactor: I'll use a wrapper here.
-      
       const result = await loginWithStaffId(formData);
       if (result && result.error) {
         setError(result.error);
         setIsLoading(false);
       }
-      // If success, the redirect in the action will take over.
-      
     } catch (err) {
-      // If it's a redirect error, we can ignore it (Next.js handles it)
-      // or if it's a real error, show it.
-      // The `redirect` function throws an error that is caught by Next.js.
-      // But when calling a server action from client, it behaves differently?
-      // Actually, recent Next.js versions handle this gracefully.
       console.error(err);
-      // setError('An unexpected error occurred.'); // Don't show this if it's just a redirect
-      // Ideally we check `isRedirectError` but that's internal.
-      
-      // If the action redirects, the promise might reject or never resolve to a value?
-      // Actually, the server action that redirects will return a response that tells the client to navigate.
+      setIsLoading(false);
     }
   };
 
   return (
-    <div className="w-full max-w-md bg-white dark:bg-zinc-900 rounded-lg shadow-lg p-8 border border-zinc-200 dark:border-zinc-800">
-      <h2 className="text-2xl font-bold mb-6 text-center text-zinc-900 dark:text-zinc-100">Staff Login</h2>
+    <div className="w-full">
+      <div className="flex justify-center mb-8">
+        <div className="p-3 bg-blue-50 dark:bg-blue-900/20 rounded-full">
+          <ShieldCheck className="w-8 h-8 text-blue-600 dark:text-blue-400" />
+        </div>
+      </div>
+
+      <h2 className="text-2xl font-bold mb-2 text-center text-zinc-900 dark:text-zinc-100">Portal Authentication</h2>
+      <p className="text-sm text-zinc-500 dark:text-zinc-400 text-center mb-8">
+        Enter your official DUR Staff ID to proceed to the ballot.
+      </p>
       
-      <form onSubmit={handleSubmit} className="space-y-6">
-        <div>
-          <label htmlFor="staffId" className="block text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-2">
-            Staff ID
+      <form onSubmit={handleSubmit} className="space-y-5">
+        <div className="space-y-2">
+          <label htmlFor="staffId" className="text-xs font-bold uppercase tracking-wider text-zinc-500 dark:text-zinc-400 ml-1">
+            Staff ID Number
           </label>
-          <input
-            type="text"
-            id="staffId"
-            name="staffId"
-            value={staffId}
-            onChange={(e) => {
-              setStaffId(e.target.value);
-              setError('');
-            }}
-            placeholder="Enter your Staff ID"
-            className="w-full px-4 py-3 rounded-md border border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-800 text-zinc-900 dark:text-zinc-100 focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition-all"
-            disabled={isLoading}
-          />
-          {error && <p className="mt-2 text-sm text-red-600 dark:text-red-400">{error}</p>}
+          <div className="relative group">
+            <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-zinc-400 group-focus-within:text-blue-500 transition-colors">
+              <User className="w-5 h-5" />
+            </div>
+            <input
+              type="text"
+              id="staffId"
+              name="staffId"
+              autoComplete="off"
+              spellCheck="false"
+              placeholder="e.g. DUR-2024-001"
+              className={`block w-full pl-11 pr-4 py-3.5 bg-zinc-50 dark:bg-zinc-800/50 border ${error ? 'border-red-500 focus:ring-red-500/20' : 'border-zinc-200 dark:border-zinc-700 focus:ring-blue-500/20'} rounded-xl focus:outline-none focus:ring-4 transition-all text-zinc-900 dark:text-zinc-100 placeholder:text-zinc-400 dark:placeholder:text-zinc-600`}
+              value={staffId}
+              onChange={(e) => {
+                setStaffId(e.target.value);
+                setError('');
+              }}
+              disabled={isLoading}
+            />
+          </div>
+          {error && (
+            <p className="text-xs font-medium text-red-500 mt-1.5 ml-1 flex items-center gap-1">
+              <span className="inline-block w-1 h-1 rounded-full bg-red-500" />
+              {error}
+            </p>
+          )}
         </div>
 
         <button
           type="submit"
-          disabled={isLoading}
-          className={`w-full bg-blue-600 hover:bg-blue-700 text-white font-semibold py-3 px-4 rounded-md transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 dark:focus:ring-offset-zinc-900 ${isLoading ? 'opacity-70 cursor-not-allowed' : ''}`}
+          disabled={isLoading || !staffId.trim()}
+          className="w-full flex items-center justify-center gap-2 py-4 px-6 bg-blue-600 hover:bg-blue-700 disabled:bg-zinc-300 dark:disabled:bg-zinc-800 disabled:cursor-not-allowed text-white font-bold rounded-xl shadow-lg shadow-blue-500/20 hover:shadow-blue-500/30 transition-all active:scale-[0.98]"
         >
-          {isLoading ? 'Verifying...' : 'Enter Voting Dashboard'}
+          {isLoading ? (
+            <Loader2 className="w-5 h-5 animate-spin" />
+          ) : (
+            <>
+              Verify & Continue
+              <ArrowRight className="w-5 h-5" />
+            </>
+          )}
         </button>
+
+        <p className="text-[11px] text-zinc-400 dark:text-zinc-500 text-center px-4">
+          By continuing, you agree to the Department&apos;s election integrity policies and data protection guidelines.
+        </p>
       </form>
-      
-      <div className="mt-6 pt-6 border-t border-zinc-200 dark:border-zinc-800">
-        <h3 className="text-sm font-semibold text-zinc-900 dark:text-zinc-100 mb-2">Instructions:</h3>
-        <ul className="text-sm text-zinc-600 dark:text-zinc-400 list-disc list-inside space-y-1">
-          <li>Enter your unique Staff ID to access the ballot.</li>
-          <li>You can only vote once.</li>
-          <li>Your selections are confidential.</li>
-        </ul>
-      </div>
     </div>
   );
 }

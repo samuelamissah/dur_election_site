@@ -92,7 +92,7 @@ export async function sendConfirmationEmail(staffId: string) {
       <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
         <h2 style="color: #2563EB;">Department of Urban Roads Welfare Election 2026</h2>
         <p>Hello,</p>
-        <p>You have been registered as an eligible voter for the upcoming staff election.</p>
+        <p>You have been registered as an eligible voter for the upcoming welfare election.</p>
         
         <div style="background-color: #F3F4F6; padding: 15px; border-radius: 8px; margin: 20px 0;">
           <p><strong>Staff ID:</strong> ${staffId}</p>
@@ -186,9 +186,13 @@ export async function getStaffList() {
  }
  
  export async function deleteAllStaff() {
-   const supabase = await createClient()
-   await supabase.from('votes').delete()
-   const { error } = await supabase.from('staff').delete()
+   const { createServiceClient } = await import('../utils/supabase/serviceRole')
+   const supabaseSR = createServiceClient()
+   
+   // Delete votes first to satisfy foreign key constraint
+   await supabaseSR.from('votes').delete().not('staff_id', 'is', null)
+   
+   const { error } = await supabaseSR.from('staff').delete().not('staff_id', 'is', null)
    if (error) {
      console.error('Delete all staff error:', error)
      return { error: 'Failed to delete all staff: ' + error.message }
@@ -198,8 +202,13 @@ export async function getStaffList() {
  }
  
  export async function deleteAllCandidates() {
-   const supabase = await createClient()
-   const { error } = await supabase.from('candidates').delete()
+   const { createServiceClient } = await import('../utils/supabase/serviceRole')
+   const supabaseSR = createServiceClient()
+
+   // Delete votes first because candidates are referenced there
+   await supabaseSR.from('votes').delete().not('candidate_id', 'is', null)
+   
+   const { error } = await supabaseSR.from('candidates').delete().not('name', 'is', null)
    if (error) {
      console.error('Delete all candidates error:', error)
      return { error: 'Failed to delete all candidates: ' + error.message }
@@ -235,7 +244,7 @@ export async function sendThankYouEmail(staffId: string) {
       <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
         <h2 style="color: #2563EB;">Thank You for Voting</h2>
         <p>Hello,</p>
-        <p>Your vote has been recorded successfully for the Staff Election.</p>
+        <p>Your vote has been recorded successfully for the welfare election.</p>
         <p style="margin-top: 12px; font-size: 12px; color: #6B7280;">If you have any concerns, contact the election committee.</p>
       </div>
     `,

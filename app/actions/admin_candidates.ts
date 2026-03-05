@@ -99,6 +99,40 @@ export async function uploadCandidatesCsv(formData: FormData) {
   revalidatePath('/admin')
   return { success: true, count: candidatesData.length }
 }
+
+export async function getCandidatesList() {
+  const supabase = await createClient()
+  
+  const { data, error } = await supabase
+    .from('candidates')
+    .select('*, positions(title)')
+    .order('created_at', { ascending: false })
+    
+  if (error) {
+    console.error('Fetch candidates error:', error)
+    return []
+  }
+  
+  return data
+}
+
+export async function deleteCandidate(candidateId: string) {
+  const { createServiceClient } = await import('../utils/supabase/serviceRole')
+  const supabaseSR = createServiceClient()
+
+  // Delete votes first because candidate is referenced there
+  await supabaseSR.from('votes').delete().eq('candidate_id', candidateId)
+  
+  const { error } = await supabaseSR.from('candidates').delete().eq('id', candidateId)
+  
+  if (error) {
+    console.error('Delete candidate error:', error)
+    return { error: 'Failed to delete candidate: ' + error.message }
+  }
+
+  revalidatePath('/admin')
+  return { success: true }
+}
  
  export async function deletePosition(slug: string) {
   const supabase = await createClient()
@@ -119,7 +153,7 @@ export async function getDetailedResults() {
   
   const { data: positions } = await supabase
     .from('positions')
-    .select('slug,title,description,display_order,id')
+    .select('slug,title,description,display_order')
     .order('display_order')
   if (!positions) return []
   
@@ -127,14 +161,19 @@ export async function getDetailedResults() {
     .from('candidates')
     .select('id,name,role,bio,image_url,position_id')
   
-  // Use a view or grouped counts via service role to avoid RLS and complex client grouping
-  const { data: counts } = await supabaseSR
-    .from('candidate_vote_counts')
-    .select('candidate_id,position_id,vote_count')
+  // Direct aggregation from votes table using Service Role to bypass RLS and avoid stale views
+  const { data: votes, error: votesError } = await supabaseSR
+    .from('votes')
+    .select('candidate_id,position_id')
+  
+  if (votesError) {
+    console.error('Failed to fetch raw votes:', votesError)
+  }
   
   const countMap = new Map<string, number>()
-  ;(counts || []).forEach(c => {
-    countMap.set(`${c.position_id}:${c.candidate_id}`, c.vote_count as number)
+  ;(votes || []).forEach(v => {
+    const key = `${v.position_id}:${v.candidate_id}`
+    countMap.set(key, (countMap.get(key) || 0) + 1)
   })
   
   return positions.map((pos: any) => {

@@ -45,17 +45,13 @@ begin
 end $$;
 
 -- Create view for aggregated candidate vote counts
-do $$
-begin
-  if not exists (
-    select 1 from pg_views where viewname = 'candidate_vote_counts'
-  ) then
-    create view candidate_vote_counts as
-      select candidate_id, position_id, count(*) as vote_count
-      from votes
-      group by candidate_id, position_id;
-  end if;
-end $$;
+create or replace view candidate_vote_counts as
+  select 
+    candidate_id, 
+    position_id, 
+    count(*)::integer as vote_count
+  from votes
+  group by candidate_id, position_id;
 
 -- Add 'email' column if it was missing from a previous partial run
 do $$
@@ -70,6 +66,9 @@ do $$
 begin
   if not exists (select 1 from information_schema.columns where table_name='staff' and column_name='has_voted') then
     alter table staff add column has_voted boolean default false;
+  end if;
+  if not exists (select 1 from information_schema.columns where table_name='staff' and column_name='id') then
+    alter table staff add column id uuid default uuid_generate_v4();
   end if;
 end $$;
  
@@ -149,7 +148,7 @@ end $$;
    ('vice-chairman', 'Vice Chairman', 'Supports the Chairman and steps in when necessary.', 2),
    ('treasurer', 'Treasurer', 'Manages the financial assets and records of the organization.', 3),
   ('secretary', 'Secretary', 'Maintains records, minutes, and correspondence.', 4),
-  ('organiser', 'Organiser', 'Coordinates and oversees election operations.', 5)
+  ('organiser', 'Organiser', 'Coordinates and oversees organizational activities and staff events.', 5)
 
 on conflict (slug) do nothing;
  
