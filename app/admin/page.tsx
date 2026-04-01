@@ -842,7 +842,7 @@ function CandidateManagement() {
         </div>
         
         <p className="text-sm text-zinc-500 dark:text-zinc-400 mb-4">
-          Upload CSV with columns: <code className="bg-zinc-100 dark:bg-zinc-700 px-1 rounded">name</code>, <code className="bg-zinc-100 dark:bg-zinc-700 px-1 rounded">position_slug</code> (e.g. 'chairman'), <code className="bg-zinc-100 dark:bg-zinc-700 px-1 rounded">role</code>, <code className="bg-zinc-100 dark:bg-zinc-700 px-1 rounded">bio</code>, <code className="bg-zinc-100 dark:bg-zinc-700 px-1 rounded">image_url</code>.
+          Upload CSV with columns: <code className="bg-zinc-100 dark:bg-zinc-700 px-1 rounded">name</code>, <code className="bg-zinc-100 dark:bg-zinc-700 px-1 rounded">position_slug</code> (e.g. &lsquo;chairman&rsquo;), <code className="bg-zinc-100 dark:bg-zinc-700 px-1 rounded">role</code>, <code className="bg-zinc-100 dark:bg-zinc-700 px-1 rounded">bio</code>, <code className="bg-zinc-100 dark:bg-zinc-700 px-1 rounded">image_url</code>.
         </p>
 
         {uploadStatus && (
