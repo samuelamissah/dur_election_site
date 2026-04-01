@@ -15,18 +15,19 @@ export async function uploadStaffCsv(formData: FormData) {
   const text = await file.text()
   const rows = text.split('\n').map(row => row.trim()).filter(Boolean)
   
-  // Assume CSV header: staff_id, email
+  // Assume CSV header: staff_id, email, phone (optional)
   // Skip header if present (simple check)
   const startIndex = rows[0].toLowerCase().includes('staff_id') ? 1 : 0
   
   const staffData = []
   
   for (let i = startIndex; i < rows.length; i++) {
-    const [staffId, email] = rows[i].split(',').map(s => s.trim())
+    const [staffId, email, phone] = rows[i].split(',').map(s => s.trim())
     if (staffId && email) {
       staffData.push({
         staff_id: staffId,
         email: email,
+        phone: phone || null,
         has_voted: false
       })
     }
@@ -47,14 +48,49 @@ export async function uploadStaffCsv(formData: FormData) {
     return { error: 'Failed to upload staff data: ' + error.message }
   }
 
-  // Send emails to uploaded staff
+  // Send notifications to uploaded staff
   const results = await Promise.allSettled(
-    staffData.map((s) => sendConfirmationEmail(s.staff_id))
+    staffData.map(async (s) => {
+      const emailRes = await sendConfirmationEmail(s.staff_id);
+      
+      // Placeholder for SMS (requires paid API)
+      if (s.phone) {
+        await sendSmsNotification(s.staff_id, s.phone);
+      }
+      
+      return emailRes;
+    })
   )
   const emailsSent = results.filter(r => r.status === 'fulfilled' && (r as PromiseFulfilledResult<any>).value?.success).length
 
   revalidatePath('/admin')
   return { success: true, count: staffData.length, emailsSent }
+}
+
+export async function sendSmsNotification(staffId: string, phone: string) {
+  // IMPORTANT: For production, you would use an API like Hubtel, Arkesel, or Twilio.
+  // These are paid services that require an API Key.
+  // Below is a code structure for how it would work:
+  
+  console.log(`[SMS PROXY] Sending notification to ${phone} for Staff ID: ${staffId}`);
+  
+  /* 
+  Example Hubtel Integration:
+  const response = await fetch('https://smsc.hubtel.com/v1/messages/send', {
+    method: 'POST',
+    headers: {
+      'Authorization': 'Basic ' + btoa(process.env.HUBTEL_CLIENT_ID + ':' + process.env.HUBTEL_CLIENT_SECRET),
+      'Content-Type': 'application/json'
+    },
+    body: JSON.stringify({
+      from: 'DUR-VOTE',
+      to: phone,
+      content: `Hello! You have been added to the 2026 Welfare Election portal. Staff ID: ${staffId}. Vote here: ${process.env.NEXT_PUBLIC_SITE_URL}`
+    })
+  });
+  */
+  
+  return { success: true };
 }
 
 import nodemailer from 'nodemailer';
@@ -96,7 +132,7 @@ export async function sendConfirmationEmail(staffId: string) {
         
         <div style="background-color: #F3F4F6; padding: 15px; border-radius: 8px; margin: 20px 0;">
           <p><strong>Staff ID:</strong> ${staffId}</p>
-          <p><strong>Voting Period:</strong> March 10, 2026 - March 15, 2026 (5:00 PM)</p>
+          <p><strong>Voting Period:</strong>10th April 2026 (8:00AM - 5:00 PM)</p>
         </div>
 
         <p>Please use your Staff ID to log in and cast your vote securely.</p>

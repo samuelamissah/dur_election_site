@@ -3,10 +3,12 @@
 
 import { uploadStaffCsv, getElectionStats, getStaffList, sendConfirmationEmail, deleteStaff, deleteAllStaff, deleteAllCandidates } from '../actions/admin';
 import { uploadCandidatesCsv, getDetailedResults, deletePosition, getCandidatesList, deleteCandidate, deleteAllPositions, seedDefaultPositions } from '../actions/admin_candidates';
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { useRouter } from 'next/navigation';
-import { Users, UserPlus, Settings, BarChart2, Upload, Mail, Download, RefreshCw, AlertTriangleIcon, AlertTriangle, Landmark, LogOut } from 'lucide-react';
+import { Users, UserPlus, Settings, BarChart2, Upload, Mail, Download, RefreshCw, AlertTriangleIcon, AlertTriangle, Landmark, LogOut, FileText, TrendingUp, Info } from 'lucide-react';
 import { useToast } from '../components/Toast';
+import jsPDF from 'jspdf';
+import { toPng } from 'html-to-image';
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
@@ -178,6 +180,8 @@ function ResultsView() {
   const [isLoading, setIsLoading] = useState(false);
   const [isElectionActive, setIsElectionActive] = useState(true); // Should fetch from DB/Config
   const [hydrated, setHydrated] = useState(false);
+  const [isExporting, setIsExporting] = useState(false);
+  const resultsRef = useRef<HTMLDivElement>(null);
 
   const fetchStats = useCallback(async () => {
     setIsLoading(true);
@@ -208,18 +212,67 @@ function ResultsView() {
     queueMicrotask(() => setHydrated(true));
   }, []);
 
+  const handleExportPDF = async () => {
+    if (!resultsRef.current) return;
+    setIsExporting(true);
+    try {
+      const dataUrl = await toPng(resultsRef.current, {
+        quality: 1.0,
+        pixelRatio: 2,
+        backgroundColor: '#ffffff',
+      });
+
+      const pdf = new jsPDF({
+        orientation: 'portrait',
+        unit: 'mm',
+        format: 'a4',
+      });
+
+      const imgProps = pdf.getImageProperties(dataUrl);
+      const pdfWidth = pdf.internal.pageSize.getWidth();
+      const pdfHeight = (imgProps.height * pdfWidth) / imgProps.width;
+
+      pdf.setFontSize(18);
+      pdf.text('DUR Welfare Election 2026 - Official Results Report', 15, 20);
+      pdf.setFontSize(10);
+      pdf.text(`Generated on: ${new Date().toLocaleString()}`, 15, 28);
+      
+      pdf.addImage(dataUrl, 'PNG', 0, 35, pdfWidth, pdfHeight);
+      pdf.save(`DUR-Election-Results-${new Date().toISOString().split('T')[0]}.pdf`);
+    } catch (error) {
+      console.error('Export error:', error);
+      alert('Failed to export results. Please try again.');
+    } finally {
+      setIsExporting(false);
+    }
+  };
+
   return (
     <div>
       <div className="flex justify-between items-center mb-6">
         <h2 className="text-2xl font-bold text-zinc-900 dark:text-zinc-100">Election Results</h2>
-        <button 
-          onClick={fetchStats}
-          disabled={isLoading}
-          className="flex items-center text-sm text-blue-600 hover:text-blue-700 font-medium"
-        >
-          <RefreshCw className={`w-4 h-4 mr-2 ${isLoading ? 'animate-spin' : ''}`} />
-          Refresh
-        </button>
+        <div className="flex items-center gap-4">
+          <button 
+            onClick={handleExportPDF}
+            disabled={isExporting || isLoading}
+            className="flex items-center text-sm bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 font-medium shadow-sm transition-all disabled:opacity-50"
+          >
+            {isExporting ? (
+              <RefreshCw className="w-4 h-4 mr-2 animate-spin" />
+            ) : (
+              <FileText className="w-4 h-4 mr-2" />
+            )}
+            Export Report (PDF)
+          </button>
+          <button 
+            onClick={fetchStats}
+            disabled={isLoading}
+            className="flex items-center text-sm text-blue-600 hover:text-blue-700 font-medium"
+          >
+            <RefreshCw className={`w-4 h-4 mr-2 ${isLoading ? 'animate-spin' : ''}`} />
+            Refresh
+          </button>
+        </div>
       </div>
       
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
@@ -245,106 +298,155 @@ function ResultsView() {
           </div>
         )}
 
-        <div className="space-y-12">
-          {detailedResults.map((position, index) => (
-            <div key={position.slug || position.id || `pos-${index}`} className="bg-zinc-50 dark:bg-zinc-900/50 rounded-2xl p-6 border border-zinc-100 dark:border-zinc-800">
-              <div className="flex items-center justify-between mb-8">
-                <div>
-                  <h4 className="text-lg font-black text-zinc-900 dark:text-zinc-50 uppercase tracking-tight">
-                    {position.title}
-                  </h4>
-                  <p className="text-xs text-zinc-500 font-medium mt-1">{position.description || 'Results for ' + position.title}</p>
-                </div>
-                <div className="px-3 py-1 bg-blue-100 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 rounded-full text-[10px] font-black uppercase tracking-widest border border-blue-200 dark:border-blue-800/50">
-                  {position.candidates.reduce((sum: number, c: any) => sum + (c.voteCount || 0), 0)} Total Votes
-                </div>
-              </div>
+        <div className="space-y-12" ref={resultsRef}>
+          {detailedResults.map((position, index) => {
+            const totalVotes = position.candidates.reduce((sum: number, c: any) => sum + (c.voteCount || 0), 0);
+            const sortedCandidates = [...position.candidates].sort((a: any, b: any) => (b.voteCount || 0) - (a.voteCount || 0));
+            const winner = sortedCandidates[0];
+            const runnerUp = sortedCandidates[1];
+            const margin = winner && runnerUp ? winner.voteCount - runnerUp.voteCount : 0;
+            const leadPercentage = totalVotes > 0 && winner ? Math.round((winner.voteCount / totalVotes) * 100) : 0;
 
-              <div className="space-y-6">
-                {position.candidates.length === 0 ? (
-                  <p className="text-sm text-zinc-400 italic py-4">No candidates registered for this position.</p>
-                ) : (
-                  position.candidates
-                    .sort((a: any, b: any) => (b.voteCount || 0) - (a.voteCount || 0))
-                    .map((candidate: any) => {
-                      const totalVotesForPos = position.candidates.reduce((sum: number, c: any) => sum + (c.voteCount || 0), 0);
-                      const percentage = totalVotesForPos > 0 ? Math.round(((candidate.voteCount || 0) / totalVotesForPos) * 100) : 0;
-                      
-                      const initials = candidate.name
-                        .split(' ')
-                        .filter(Boolean)
-                        .slice(0, 2)
-                        .map((s: string) => s[0]?.toUpperCase() || '')
-                        .join('');
-                      
-                      return (
-                        <div key={candidate.id} className="group relative">
-                          <div className="flex justify-between items-center mb-2">
-                            <div className="flex items-center gap-3">
-                              {/* JD Initials / Image Circle */}
-                              <div className="w-10 h-10 rounded-full bg-white dark:bg-zinc-800 border-2 border-zinc-200 dark:border-zinc-700 flex items-center justify-center text-xs font-black text-blue-600 dark:text-blue-400 overflow-hidden shadow-sm group-hover:border-blue-500 transition-colors">
-                                {candidate.image_url ? (
-                                  <img 
-                                    src={candidate.image_url} 
-                                    alt="" 
-                                    className="w-full h-full object-cover" 
-                                    onError={(e) => {
-                                      (e.target as any).style.display = 'none';
-                                      (e.target as any).parentElement.innerText = initials;
-                                    }}
-                                  />
-                                ) : (
-                                  initials
-                                )}
-                              </div>
-                              <div>
-                                <span className="text-sm font-bold text-zinc-800 dark:text-zinc-200 group-hover:text-blue-600 transition-colors">
-                                  {candidate.name}
-                                </span>
-                                {candidate.voteCount > 0 && candidate.voteCount === Math.max(...position.candidates.map((c: any) => c.voteCount)) && (
-                                  <span className="ml-2 text-[8px] font-black uppercase tracking-tighter bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400 px-1.5 py-0.5 rounded shadow-sm border border-green-200 dark:border-green-800/50">Winner</span>
-                                )}
-                              </div>
-                            </div>
-                            <div className="text-right">
-                              <span className="text-base font-black text-zinc-900 dark:text-zinc-50">{candidate.voteCount || 0}</span>
-                              <span className="text-[10px] text-zinc-400 font-bold ml-1 uppercase">Votes</span>
-                              <div className="text-[10px] font-black text-blue-600 dark:text-blue-400 leading-none mt-0.5">{percentage}%</div>
-                            </div>
-                          </div>
-                          
-                          {/* Horizontal Bar Chart */}
-                          <div className="relative h-6 bg-zinc-100/50 dark:bg-zinc-800/50 rounded-lg border border-zinc-200 dark:border-zinc-700 overflow-hidden flex items-center shadow-inner group-hover:bg-zinc-100 dark:group-hover:bg-zinc-800 transition-colors">
-                            {/* Vertical Grid Lines for scale */}
-                            <div className="absolute inset-0 flex justify-between px-px pointer-events-none opacity-20 dark:opacity-10">
-                              {[0, 25, 50, 75, 100].map(v => (
-                                <div key={v} className="h-full w-px bg-zinc-400 dark:bg-zinc-500" />
-                              ))}
-                            </div>
+            return (
+              <div key={position.slug || position.id || `pos-${index}`} className="bg-zinc-50 dark:bg-zinc-900/50 rounded-2xl p-6 border border-zinc-100 dark:border-zinc-800">
+                <div className="flex items-start justify-between mb-8">
+                  <div>
+                    <h4 className="text-lg font-black text-zinc-900 dark:text-zinc-50 uppercase tracking-tight">
+                      {position.title}
+                    </h4>
+                    <p className="text-xs text-zinc-500 font-medium mt-1">{position.description || 'Results for ' + position.title}</p>
+                  </div>
+                  <div className="text-right">
+                    <div className="px-3 py-1 bg-blue-100 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 rounded-full text-[10px] font-black uppercase tracking-widest border border-blue-200 dark:border-blue-800/50">
+                      {totalVotes} Total Votes
+                    </div>
+                  </div>
+                </div>
 
-                            <div 
-                              className={`h-full rounded-r-lg transition-all duration-1000 ease-out shadow-[4px_0_12px_rgba(37,99,235,0.4)] relative group-hover:brightness-110 ${
-                                percentage === 0 ? 'w-0' : 'bg-linear-to-r from-blue-700 to-blue-500'
-                              }`}
-                              style={{ width: `${percentage}%` }}
-                            >
-                              {percentage > 10 && (
-                                <div className="absolute inset-0 bg-linear-to-r from-transparent via-white/20 to-transparent animate-shimmer" />
-                              )}
-                            </div>
-                          </div>
-                        </div>
-                      );
-                    })
+                {/* Analytical Summary Section */}
+                {totalVotes > 0 && (
+                  <div className="mb-8 grid grid-cols-1 sm:grid-cols-3 gap-4">
+                    <div className="bg-white dark:bg-zinc-800 p-4 rounded-xl border border-zinc-100 dark:border-zinc-700 shadow-sm">
+                      <div className="flex items-center gap-2 text-zinc-500 dark:text-zinc-400 mb-1">
+                        <TrendingUp className="w-3.5 h-3.5 text-green-500" />
+                        <span className="text-[10px] font-bold uppercase tracking-wider">Current Leader</span>
+                      </div>
+                      <p className="text-sm font-black text-zinc-900 dark:text-zinc-50 truncate">
+                        {winner?.name}
+                      </p>
+                      <p className="text-[10px] text-zinc-400 font-medium mt-0.5">{leadPercentage}% of total votes</p>
+                    </div>
+                    
+                    <div className="bg-white dark:bg-zinc-800 p-4 rounded-xl border border-zinc-100 dark:border-zinc-700 shadow-sm">
+                      <div className="flex items-center gap-2 text-zinc-500 dark:text-zinc-400 mb-1">
+                        <BarChart2 className="w-3.5 h-3.5 text-blue-500" />
+                        <span className="text-[10px] font-bold uppercase tracking-wider">Margin of Lead</span>
+                      </div>
+                      <p className="text-sm font-black text-zinc-900 dark:text-zinc-50">
+                        {margin} {margin === 1 ? 'Vote' : 'Votes'}
+                      </p>
+                      <p className="text-[10px] text-zinc-400 font-medium mt-0.5">Ahead of second place</p>
+                    </div>
+
+                    <div className="bg-white dark:bg-zinc-800 p-4 rounded-xl border border-zinc-100 dark:border-zinc-700 shadow-sm">
+                      <div className="flex items-center gap-2 text-zinc-500 dark:text-zinc-400 mb-1">
+                        <Info className="w-3.5 h-3.5 text-zinc-400" />
+                        <span className="text-[10px] font-bold uppercase tracking-wider">Status</span>
+                      </div>
+                      <p className="text-sm font-black text-zinc-900 dark:text-zinc-50 uppercase tracking-tighter">
+                        {margin > (totalVotes * 0.1) ? 'Strong Lead' : 'Competitive'}
+                      </p>
+                      <p className="text-[10px] text-zinc-400 font-medium mt-0.5">Based on current count</p>
+                    </div>
+                  </div>
                 )}
+
+                <div className="space-y-6">
+                  {position.candidates.length === 0 ? (
+                    <p className="text-sm text-zinc-400 italic py-4">No candidates registered for this position.</p>
+                  ) : (
+                    position.candidates
+                      .sort((a: any, b: any) => (b.voteCount || 0) - (a.voteCount || 0))
+                      .map((candidate: any) => {
+                        const totalVotesForPos = position.candidates.reduce((sum: number, c: any) => sum + (c.voteCount || 0), 0);
+                        const percentage = totalVotesForPos > 0 ? Math.round(((candidate.voteCount || 0) / totalVotesForPos) * 100) : 0;
+                        
+                        const initials = candidate.name
+                          .split(' ')
+                          .filter(Boolean)
+                          .slice(0, 2)
+                          .map((s: string) => s[0]?.toUpperCase() || '')
+                          .join('');
+                        
+                        return (
+                          <div key={candidate.id} className="group relative">
+                            <div className="flex justify-between items-center mb-2">
+                              <div className="flex items-center gap-3">
+                                {/* JD Initials / Image Circle */}
+                                <div className="w-10 h-10 rounded-full bg-white dark:bg-zinc-800 border-2 border-zinc-200 dark:border-zinc-700 flex items-center justify-center text-xs font-black text-blue-600 dark:text-blue-400 overflow-hidden shadow-sm group-hover:border-blue-500 transition-colors">
+                                  {candidate.image_url ? (
+                                    <img 
+                                      src={candidate.image_url} 
+                                      alt="" 
+                                      className="w-full h-full object-cover" 
+                                      onError={(e) => {
+                                        (e.target as any).style.display = 'none';
+                                        (e.target as any).parentElement.innerText = initials;
+                                      }}
+                                    />
+                                  ) : (
+                                    initials
+                                  )}
+                                </div>
+                                <div>
+                                  <span className="text-sm font-bold text-zinc-800 dark:text-zinc-200 group-hover:text-blue-600 transition-colors">
+                                    {candidate.name}
+                                  </span>
+                                  {candidate.voteCount > 0 && candidate.voteCount === Math.max(...position.candidates.map((c: any) => c.voteCount)) && (
+                                    <span className="ml-2 text-[8px] font-black uppercase tracking-tighter bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400 px-1.5 py-0.5 rounded shadow-sm border border-green-200 dark:border-green-800/50">Winner</span>
+                                  )}
+                                </div>
+                              </div>
+                              <div className="text-right">
+                                <span className="text-base font-black text-zinc-900 dark:text-zinc-50">{candidate.voteCount || 0}</span>
+                                <span className="text-[10px] text-zinc-400 font-bold ml-1 uppercase">Votes</span>
+                                <div className="text-[10px] font-black text-blue-600 dark:text-blue-400 leading-none mt-0.5">{percentage}%</div>
+                              </div>
+                            </div>
+                            
+                            {/* Horizontal Bar Chart */}
+                            <div className="relative h-6 bg-zinc-100/50 dark:bg-zinc-800/50 rounded-lg border border-zinc-200 dark:border-zinc-700 overflow-hidden flex items-center shadow-inner group-hover:bg-zinc-100 dark:group-hover:bg-zinc-800 transition-colors">
+                              {/* Vertical Grid Lines for scale */}
+                              <div className="absolute inset-0 flex justify-between px-px pointer-events-none opacity-20 dark:opacity-10">
+                                {[0, 25, 50, 75, 100].map(v => (
+                                  <div key={v} className="h-full w-px bg-zinc-400 dark:bg-zinc-500" />
+                                ))}
+                              </div>
+
+                              <div 
+                                className={`h-full rounded-r-lg transition-all duration-1000 ease-out shadow-[4px_0_12px_rgba(37,99,235,0.4)] relative group-hover:brightness-110 ${
+                                  percentage === 0 ? 'w-0' : 'bg-linear-to-r from-blue-700 to-blue-500'
+                                }`}
+                                style={{ width: `${percentage}%` }}
+                              >
+                                {percentage > 10 && (
+                                  <div className="absolute inset-0 bg-linear-to-r from-transparent via-white/20 to-transparent animate-shimmer" />
+                                )}
+                              </div>
+                            </div>
+                          </div>
+                        );
+                      })
+                  )}
+                </div>
               </div>
-            </div>
-          ))}
-          
-          {detailedResults.length === 0 && (
-            <p className="text-center text-zinc-500 py-8">No results data available yet.</p>
-          )}
+            );
+          })}
         </div>
+        
+        {detailedResults.length === 0 && (
+          <p className="text-center text-zinc-500 py-8">No results data available yet.</p>
+        )}
       </div>
     </div>
   );
@@ -469,7 +571,7 @@ function StaffManagement() {
           </button>
         </div>
         <p className="text-sm text-zinc-500 dark:text-zinc-400 mb-4">
-          Upload a CSV file containing columns: <code className="bg-zinc-100 dark:bg-zinc-700 px-1 py-0.5 rounded">staff_id</code>, <code className="bg-zinc-100 dark:bg-zinc-700 px-1 py-0.5 rounded">email</code>.
+          Upload a CSV file containing columns: <code className="bg-zinc-100 dark:bg-zinc-700 px-1 py-0.5 rounded">staff_id</code>, <code className="bg-zinc-100 dark:bg-zinc-700 px-1 py-0.5 rounded">email</code>, <code className="bg-zinc-100 dark:bg-zinc-700 px-1 py-0.5 rounded">phone</code> (optional).
         </p>
         
         {uploadStatus && (
@@ -574,25 +676,27 @@ function StaffManagement() {
               <tr className="border-b border-zinc-200 dark:border-zinc-700">
                 <th className="pb-3 font-medium text-zinc-500 dark:text-zinc-400">Staff ID</th>
                 <th className="pb-3 font-medium text-zinc-500 dark:text-zinc-400">Email</th>
+                <th className="pb-3 font-medium text-zinc-500 dark:text-zinc-400">Phone</th>
                 <th className="pb-3 font-medium text-zinc-500 dark:text-zinc-400">Status</th>
-                <th className="pb-3 font-medium text-zinc-500 dark:text-zinc-400">Email Sent</th>
-                <th className="pb-3 font-medium text-zinc-500 dark:text-zinc-400">Actions</th>
+                <th className="pb-3 font-medium text-zinc-500 dark:text-zinc-400">Notified</th>
+                <th className="pb-3 font-medium text-zinc-500 dark:text-zinc-400 text-right">Actions</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-zinc-200 dark:divide-zinc-700">
               {isLoading ? (
                 <tr>
-                  <td colSpan={5} className="py-8 text-center text-zinc-500">Loading staff data...</td>
+                  <td colSpan={6} className="py-8 text-center text-zinc-500">Loading staff data...</td>
                 </tr>
               ) : staffList.length === 0 ? (
                 <tr>
-                  <td colSpan={5} className="py-8 text-center text-zinc-500">No staff records found. Upload a CSV to get started.</td>
+                  <td colSpan={6} className="py-8 text-center text-zinc-500">No staff records found. Upload a CSV to get started.</td>
                 </tr>
               ) : (
                 staffList.map((staff) => (
                   <tr key={staff.id || staff.staff_id} className="group hover:bg-zinc-50 dark:hover:bg-zinc-800/50 transition-colors">
                     <td className="py-3 font-mono text-zinc-900 dark:text-zinc-200">{staff.staff_id}</td>
                     <td className="py-3 text-zinc-600 dark:text-zinc-400">{staff.email}</td>
+                    <td className="py-3 text-zinc-600 dark:text-zinc-400">{staff.phone || '-'}</td>
                     <td className="py-3">
                       {staff.has_voted ? (
                         <span className="px-2 py-1 rounded-full text-xs font-medium bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400">Voted</span>
@@ -601,27 +705,35 @@ function StaffManagement() {
                       )}
                     </td>
                     <td className="py-3 text-sm">
-                      {staff.email_sent ? (
-                        <span className="px-2 py-1 rounded-full text-xs font-medium bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400">Yes</span>
-                      ) : (
-                        <span className="px-2 py-1 rounded-full text-xs font-medium bg-zinc-100 text-zinc-800 dark:bg-zinc-800/40 dark:text-zinc-300">No</span>
-                      )}
+                      <div className="flex flex-col gap-1">
+                        <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold uppercase w-fit ${staff.email_sent ? 'bg-green-100 text-green-800' : 'bg-zinc-100 text-zinc-500'}`}>
+                          Email: {staff.email_sent ? 'Yes' : 'No'}
+                        </span>
+                        {staff.phone && (
+                          <span className="px-2 py-0.5 rounded-full text-[10px] font-bold uppercase w-fit bg-blue-50 text-blue-700">
+                            SMS ready
+                          </span>
+                        )}
+                      </div>
                     </td>
-                    <td className="py-3">
-                      {!staff.has_voted && (
+                    <td className="py-3 text-right">
+                      <div className="flex items-center justify-end gap-3">
+                        {!staff.has_voted && (
+                          <button 
+                            onClick={() => handleSendEmail(staff.staff_id)}
+                            className="text-blue-600 hover:text-blue-700 text-sm font-medium"
+                            title="Send login details to email"
+                          >
+                            Resend Details
+                          </button>
+                        )}
                         <button 
-                          onClick={() => handleSendEmail(staff.staff_id)}
-                          className="text-blue-600 hover:text-blue-700 text-sm font-medium mr-3"
+                          onClick={() => handleDeleteStaff(staff.staff_id)}
+                          className="text-red-600 hover:text-red-700 text-sm font-medium"
                         >
-                          Resend Email
+                          Delete
                         </button>
-                      )}
-                      <button 
-                        onClick={() => handleDeleteStaff(staff.staff_id)}
-                        className="text-red-600 hover:text-red-700 text-sm font-medium"
-                      >
-                        Delete
-                      </button>
+                      </div>
                     </td>
                   </tr>
                 ))

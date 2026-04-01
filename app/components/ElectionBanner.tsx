@@ -2,7 +2,7 @@
 import { Clock, Info } from 'lucide-react';
 
 export default function ElectionBanner() {
-  const endDate = "March 15, 2026 at 5:00 PM";
+  const endDate = "April 10, 2026 at 5:00 PM";
 
   return (
     <div className="w-full bg-blue-50 dark:bg-blue-900/20 border-b border-blue-100 dark:border-blue-800/50 py-3 px-6 text-center font-medium flex items-center justify-center gap-3">
