@@ -517,7 +517,7 @@ function StaffManagement() {
         setUploadStatus(`Success! Uploaded ${result.count} staff records. Emails sent: ${result.emailsSent}.`);
         setCsvFile(null);
         show({ title: 'Upload Complete', message: `Uploaded ${result.count}. Emails sent: ${result.emailsSent}.`, variant: 'success' });
-        fetchStaff(); // Refresh list
+        fetchStaff(); 
       } else {
         setUploadStatus(`Error: ${result.error}`);
         show({ title: 'Upload Failed', message: result.error, variant: 'error' });
