@@ -4,8 +4,9 @@
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import CandidateCard from './CandidateCard';
-import { ChevronRight, ChevronLeft, CheckCircle2, Info, Loader2 } from 'lucide-react';
+import { ChevronRight, ChevronLeft, CheckCircle2, Info, Loader2, LogOut } from 'lucide-react';
 import { createClient } from '../utils/supabase/client';
+import { logoutStaff } from '../actions/auth';
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
 export default function VotingDashboard() {
@@ -76,7 +77,7 @@ export default function VotingDashboard() {
         let changed = false;
         positions.forEach(pos => {
           const sel = next[pos.id];
-          if (sel && !pos.candidates.some(c => c.id === sel)) {
+          if (sel && sel !== 'NO_VOTE' && !pos.candidates.some(c => c.id === sel)) {
             delete next[pos.id];
             changed = true;
           }
@@ -162,6 +163,18 @@ export default function VotingDashboard() {
         </div>
       </div>
 
+      <div className="flex justify-end mb-4 sm:hidden">
+        <form action={logoutStaff}>
+          <button 
+            type="submit"
+            className="flex items-center gap-2 px-4 py-2 bg-red-50 dark:bg-red-900/10 text-red-600 dark:text-red-400 font-bold rounded-lg text-xs"
+          >
+            <LogOut className="w-3.5 h-3.5" />
+            Logout
+          </button>
+        </form>
+      </div>
+
       <div className="bg-white dark:bg-zinc-900 rounded-2xl sm:rounded-3xl border border-zinc-200 dark:border-zinc-800 shadow-sm overflow-hidden">
         <div className="p-6 sm:p-12 border-b border-zinc-100 dark:border-zinc-800 bg-zinc-50/50 dark:bg-zinc-800/20">
           <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-6">
@@ -188,7 +201,9 @@ export default function VotingDashboard() {
                   key={candidate.id}
                   candidate={candidate}
                   isSelected={selections[currentPos.id] === candidate.id}
-                  onSelect={() => handleSelect(candidate.id)}
+                  isNoSelected={selections[currentPos.id] === 'NO_VOTE'}
+                  isUnopposed={currentPos.candidates.length === 1}
+                  onSelect={(id) => handleSelect(id)}
                 />
               ))}
             </div>
@@ -214,9 +229,10 @@ export default function VotingDashboard() {
           </button>
           
           <button
+            type="button"
             onClick={handleNext}
             disabled={!selections[currentPos.id]}
-            className="flex-1 sm:flex-none flex items-center justify-center gap-2 px-6 sm:px-8 py-4 bg-blue-600 hover:bg-blue-700 disabled:bg-zinc-200 dark:disabled:bg-zinc-800 disabled:text-zinc-400 text-white font-bold rounded-xl shadow-lg shadow-blue-500/20 hover:shadow-blue-500/30 transition-all active:scale-[0.98] group text-sm sm:text-base"
+            className="flex-1 sm:flex-none flex items-center justify-center gap-2 px-6 sm:px-8 py-4 bg-blue-600 hover:bg-blue-700 disabled:bg-zinc-200 dark:disabled:bg-zinc-800 disabled:text-zinc-400 disabled:cursor-not-allowed text-white font-bold rounded-xl shadow-lg shadow-blue-500/20 hover:shadow-blue-500/30 transition-all active:scale-[0.98] group text-sm sm:text-base"
           >
             {currentStep === positions.length - 1 ? (
               <>

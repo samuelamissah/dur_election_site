@@ -2,6 +2,7 @@
 'use server'
 
 import { createClient } from '../utils/supabase/server'
+import { createServiceClient } from '../utils/supabase/serviceRole'
 import { revalidatePath } from 'next/cache'
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
@@ -15,17 +16,18 @@ export async function uploadStaffCsv(formData: FormData) {
   const text = await file.text()
   const rows = text.split('\n').map(row => row.trim()).filter(Boolean)
   
-  // Assume CSV header: staff_id, email, phone (optional)
+  // Assume CSV header: staff_id, full_name, email, phone (optional)
   // Skip header if present (simple check)
   const startIndex = rows[0].toLowerCase().includes('staff_id') ? 1 : 0
   
   const staffData = []
   
   for (let i = startIndex; i < rows.length; i++) {
-    const [staffId, email, phone] = rows[i].split(',').map(s => s.trim())
+    const [staffId, fullName, email, phone] = rows[i].split(',').map(s => s.trim())
     if (staffId && email) {
       staffData.push({
         staff_id: staffId,
+        full_name: fullName || null,
         email: email,
         phone: phone || null,
         has_voted: false
@@ -37,11 +39,18 @@ export async function uploadStaffCsv(formData: FormData) {
     return { error: 'No valid data found in CSV' }
   }
 
-  const supabase = await createClient()
+  // Deduplicate staffData by staff_id to prevent Supabase error
+  const uniqueStaffMap = new Map();
+  staffData.forEach(staff => {
+    uniqueStaffMap.set(staff.staff_id, staff);
+  });
+  const uniqueStaffData = Array.from(uniqueStaffMap.values());
+
+  const supabase = createServiceClient()
   
   const { error } = await supabase
     .from('staff')
-    .upsert(staffData, { onConflict: 'staff_id' })
+    .upsert(uniqueStaffData, { onConflict: 'staff_id' })
 
   if (error) {
     console.error('Supabase upload error:', error)
@@ -50,7 +59,7 @@ export async function uploadStaffCsv(formData: FormData) {
 
   // Send notifications to uploaded staff
   const results = await Promise.allSettled(
-    staffData.map(async (s) => {
+    uniqueStaffData.map(async (s) => {
       const emailRes = await sendConfirmationEmail(s.staff_id);
       
       // Placeholder for SMS (requires paid API)
@@ -64,7 +73,97 @@ export async function uploadStaffCsv(formData: FormData) {
   const emailsSent = results.filter(r => r.status === 'fulfilled' && (r as PromiseFulfilledResult<any>).value?.success).length
 
   revalidatePath('/admin')
-  return { success: true, count: staffData.length, emailsSent }
+  return { success: true, count: uniqueStaffData.length, emailsSent }
+}
+
+export async function uploadCandidatesCsv(formData: FormData) {
+  const file = formData.get('file') as File
+  if (!file) {
+    return { error: 'No file provided' }
+  }
+
+  const text = await file.text()
+  const rows = text.split('\n').map(row => row.trim()).filter(Boolean)
+  
+  // Header: name, position_slug, role, bio, image_url
+  const startIndex = rows[0].toLowerCase().includes('position_slug') ? 1 : 0
+  
+  const candidatesData = []
+  
+  for (let i = startIndex; i < rows.length; i++) {
+    // Handle CSV parsing carefully (simple split for now, robust parser recommended for production)
+    const cols = rows[i].split(',')
+    if (cols.length < 2) continue;
+
+    const [name, position_slug, role, bio, image_url] = cols.map(s => s.trim())
+    
+    if (name && position_slug) {
+      candidatesData.push({
+        name,
+        position_id: position_slug.toLowerCase(), // FK to positions(slug)
+        role: role || '',
+        bio: bio || '',
+        image_url: image_url || ''
+      })
+    }
+  }
+
+  if (candidatesData.length === 0) {
+    return { error: 'No valid candidate data found' }
+  }
+
+  const supabase = createServiceClient()
+ 
+  // Ensure required positions exist to satisfy FK constraint
+  const { data: existingPositions, error: posFetchErr } = await supabase
+    .from('positions')
+    .select('slug')
+ 
+  if (posFetchErr) {
+    console.error('Positions fetch error:', posFetchErr)
+    return { error: 'Failed to validate positions: ' + posFetchErr.message }
+  }
+ 
+  const existingSet = new Set<string>((existingPositions || []).map(p => p.slug))
+  const neededSlugs = Array.from(new Set(candidatesData.map(c => c.position_id)))
+  const missingSlugs = neededSlugs.filter(slug => !existingSet.has(slug))
+ 
+  if (missingSlugs.length > 0) {
+    return { 
+      error: `Invalid positions found: ${missingSlugs.join(', ')}. Please ensure positions exist before uploading candidates.` 
+    }
+  }
+  
+  let { error } = await supabase.from('candidates').insert(candidatesData)
+  if (error && error.code === 'PGRST205') {
+    // Fallback if table is singular 'candidate'
+    const fallback = await supabase.from('candidate').insert(candidatesData)
+    error = fallback.error || null as any
+  }
+
+  if (error) {
+    console.error('Candidate upload error:', error)
+    return { error: 'Failed to upload candidates: ' + error.message }
+  }
+
+  revalidatePath('/admin')
+  return { success: true, count: candidatesData.length }
+}
+
+export async function getCandidatesList() {
+  const supabase = createServiceClient()
+  
+  const { data, error } = await supabase
+    .from('candidates')
+    .select('*, positions(title)')
+    .order('created_at', { ascending: false })
+    
+  if (error) {
+    console.error('Fetch candidates error:', error)
+    return []
+  }
+  
+  return data
 }
 
 export async function sendSmsNotification(staffId: string, phone: string) {
@@ -164,7 +263,7 @@ export async function sendConfirmationEmail(staffId: string) {
 }
 
 export async function getElectionStats() {
-  const supabase = await createClient()
+  const supabase = createServiceClient()
 
   // Fetch total staff
   const { count: totalStaff, error: staffError } = await supabase
@@ -189,7 +288,7 @@ export async function getElectionStats() {
 }
 
 export async function getStaffList() {
-  const supabase = await createClient()
+  const supabase = createServiceClient()
   
   const { data, error } = await supabase
     .from('staff')
@@ -205,7 +304,7 @@ export async function getStaffList() {
 }
  
  export async function deleteStaff(staffId: string) {
-   const supabase = await createClient()
+   const supabase = createServiceClient()
  
    const { error } = await supabase
      .from('staff')

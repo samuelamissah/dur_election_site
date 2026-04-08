@@ -15,17 +15,32 @@ export async function submitVote(selections: Record<string, string>) {
     return { error: 'Unauthorized: No active session' }
   }
 
-  // Transform selections object into array
-  const votesArray = Object.entries(selections).map(([positionId, candidateId]) => ({
-    position_id: positionId,
-    candidate_id: candidateId
-  }))
-
-  if (votesArray.length === 0) {
+  // Transform selections object into array, filtering out "NO_VOTE" selections
+  const votesArray = Object.entries(selections)
+    .filter(([_, candidateId]) => candidateId !== 'NO_VOTE')
+    .map(([positionId, candidateId]) => ({
+      position_id: positionId,
+      candidate_id: candidateId
+     }))
+ 
+  if (Object.keys(selections).length === 0) {
     return { error: 'No selections submitted' }
   }
-
+ 
   const supabase = await createClient()
+
+  // Security: Verify that candidates actually belong to the positions being voted for
+  const { data: validCandidates } = await supabase
+    .from('candidates')
+    .select('id, position_id')
+    .in('id', votesArray.map(v => v.candidate_id))
+
+  for (const vote of votesArray) {
+    const isValid = validCandidates?.some(c => c.id === vote.candidate_id && c.position_id === vote.position_id)
+    if (!isValid) {
+      return { error: 'Security Alert: Invalid candidate selection detected.' }
+    }
+  }
 
   // Success!
   const refId = 'DUR-' + Math.random().toString(36).substring(2, 9).toUpperCase()

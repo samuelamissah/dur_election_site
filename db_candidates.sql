@@ -25,12 +25,25 @@ alter table positions enable row level security;
 alter table candidates enable row level security;
 
 -- Everyone can read positions and candidates (public info)
-create policy "Public read positions" on positions for select using (true);
-create policy "Public read candidates" on candidates for select using (true);
+do $$
+begin
+  if not exists (select 1 from pg_policies where policyname = 'Public read positions' and tablename = 'positions') then
+    create policy "Public read positions" on positions for select using (true);
+  end if;
 
--- Only admins can insert/update/delete (we'll rely on service role or admin check for now)
-create policy "Admins all positions" on positions for all using (true); 
-create policy "Admins all candidates" on candidates for all using (true);
+  if not exists (select 1 from pg_policies where policyname = 'Public read candidates' and tablename = 'candidates') then
+    create policy "Public read candidates" on candidates for select using (true);
+  end if;
+
+  -- Only admins can insert/update/delete (we'll rely on service role or admin check for now)
+  if not exists (select 1 from pg_policies where policyname = 'Admins all positions' and tablename = 'positions') then
+    create policy "Admins all positions" on positions for all using (true); 
+  end if;
+
+  if not exists (select 1 from pg_policies where policyname = 'Admins all candidates' and tablename = 'candidates') then
+    create policy "Admins all candidates" on candidates for all using (true);
+  end if;
+end $$;
 
 -- Seed initial positions if empty
 insert into positions (slug, title, description, display_order)

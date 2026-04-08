@@ -2,8 +2,10 @@
 'use server'
 
 import { createClient } from '../utils/supabase/server'
+import { createServiceClient } from '../utils/supabase/serviceRole'
 import { redirect } from 'next/navigation'
 import { cookies } from 'next/headers'
+import { revalidatePath } from 'next/cache'
 
 export async function loginWithStaffId(formData: FormData) {
   const staffId = formData.get('staffId') as string
@@ -12,7 +14,8 @@ export async function loginWithStaffId(formData: FormData) {
     return { error: 'Staff ID is required' }
   }
 
-  const supabase = await createClient()
+  // Use Service Role client for login verification to bypass RLS safely on the server
+  const supabase = createServiceClient()
 
   // 1. Check if staff exists
   const { data: staff, error } = await supabase
@@ -52,5 +55,22 @@ export async function loginWithStaffId(formData: FormData) {
 export async function logoutStaff() {
   const cookieStore = await cookies()
   cookieStore.delete('staff_session')
+  revalidatePath('/', 'layout')
   redirect('/')
+}
+
+export async function getCurrentStaff() {
+  const cookieStore = await cookies()
+  const staffId = cookieStore.get('staff_session')?.value
+
+  if (!staffId) return null
+
+  const supabase = createServiceClient()
+  const { data: staff } = await supabase
+    .from('staff')
+    .select('staff_id, full_name, email')
+    .eq('staff_id', staffId)
+    .single()
+
+  return staff
 }

@@ -6,6 +6,7 @@ create extension if not exists "uuid-ossp";
 create table if not exists staff (
   id uuid default uuid_generate_v4() primary key,
   staff_id text unique not null,
+  full_name text,
   email text not null,
   has_voted boolean default false,
   created_at timestamp with time zone default timezone('utc'::text, now()) not null

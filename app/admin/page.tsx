@@ -181,11 +181,29 @@ function ResultsView() {
   const [isElectionActive, setIsElectionActive] = useState(true); // Should fetch from DB/Config
   const [hydrated, setHydrated] = useState(false);
   const [isExporting, setIsExporting] = useState(false);
+  const [searchTerm, setSearchTerm] = useState('');
+  const [timeRemaining, setTimeRemaining] = useState('0d 0h');
   const resultsRef = useRef<HTMLDivElement>(null);
+
+  const calculateTimeRemaining = useCallback(() => {
+    const electionDate = new Date('2026-04-10T08:00:00');
+    const now = new Date();
+    const diff = electionDate.getTime() - now.getTime();
+    
+    if (diff <= 0) {
+      setTimeRemaining('Election Live');
+      return;
+    }
+    
+    const days = Math.floor(diff / (1000 * 60 * 60 * 24));
+    const hours = Math.floor((diff % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
+    setTimeRemaining(`${days}d ${hours}h`);
+  }, []);
 
   const fetchStats = useCallback(async () => {
     setIsLoading(true);
     try {
+      calculateTimeRemaining();
       const data = await getElectionStats();
       if (data) {
         setStats({
@@ -213,31 +231,132 @@ function ResultsView() {
   }, []);
 
   const handleExportPDF = async () => {
-    if (!resultsRef.current) return;
     setIsExporting(true);
     try {
-      const dataUrl = await toPng(resultsRef.current, {
-        quality: 1.0,
-        pixelRatio: 2,
-        backgroundColor: '#ffffff',
-      });
-
-      const pdf = new jsPDF({
-        orientation: 'portrait',
-        unit: 'mm',
-        format: 'a4',
-      });
-
-      const imgProps = pdf.getImageProperties(dataUrl);
-      const pdfWidth = pdf.internal.pageSize.getWidth();
-      const pdfHeight = (imgProps.height * pdfWidth) / imgProps.width;
-
-      pdf.setFontSize(18);
-      pdf.text('DUR Welfare Election 2026 - Official Results Report', 15, 20);
-      pdf.setFontSize(10);
-      pdf.text(`Generated on: ${new Date().toLocaleString()}`, 15, 28);
+      const { jsPDF } = await import('jspdf');
+      const { default: autoTable } = await import('jspdf-autotable');
+      const pdf = new jsPDF();
       
-      pdf.addImage(dataUrl, 'PNG', 0, 35, pdfWidth, pdfHeight);
+      // Header Background
+      pdf.setFillColor(37, 99, 235); // Blue-600
+      pdf.rect(0, 0, 210, 50, 'F');
+      
+      // Add Logo Image (DUR-1.jpg from public folder)
+      try {
+        pdf.addImage('/DUR-1.jpg', 'JPEG', 12, 10, 25, 25);
+      } catch (imgError) {
+        console.warn('Could not load logo image for PDF:', imgError);
+        // Fallback to simple building icon if image fails
+        pdf.setFillColor(255, 255, 255);
+        pdf.roundedRect(15, 12, 15, 15, 3, 3, 'F');
+        pdf.setFillColor(37, 99, 235);
+        pdf.rect(18, 21, 9, 2, 'F');
+        pdf.rect(19, 18, 1.5, 3, 'F');
+        pdf.rect(22, 18, 1.5, 3, 'F');
+        pdf.rect(25, 18, 1.5, 3, 'F');
+        pdf.triangle(18, 18, 27, 18, 22.5, 14, 'F');
+      }
+
+      // Header Text
+      pdf.setTextColor(255, 255, 255);
+      pdf.setFontSize(22);
+      pdf.setFont('helvetica', 'bold');
+      pdf.text('DEPARTMENT OF URBAN ROADS', 42, 22);
+      
+      pdf.setFontSize(14);
+      pdf.setFont('helvetica', 'normal');
+      pdf.text('OFFICIAL WELFARE ELECTION 2026', 42, 32);
+      
+      pdf.setFontSize(10);
+      pdf.text(`REPORT GENERATED: ${new Date().toLocaleString()}`, 42, 40);
+      
+      // Summary Box
+      pdf.setTextColor(0, 0, 0);
+      pdf.setFontSize(16);
+      pdf.setFont('helvetica', 'bold');
+      pdf.text('ELECTION SUMMARY', 14, 65);
+      
+      const summaryData = [
+        ['Total Registered Staff', stats.totalStaff.toString()],
+        ['Total Votes Cast', stats.votesCast.toString()],
+        ['Turnout Percentage', stats.turnout],
+        ['Status', isElectionActive ? 'IN PROGRESS' : 'COMPLETED']
+      ];
+      
+      autoTable(pdf, {
+        startY: 70,
+        head: [['Metric', 'Value']],
+        body: summaryData,
+        theme: 'striped',
+        headStyles: { fillColor: [37, 99, 235], fontSize: 11 },
+        bodyStyles: { fontSize: 10, cellPadding: 5 }
+      });
+
+      // Turnout Bar Chart Visualization
+      let currentY = (pdf as any).lastAutoTable.finalY + 15;
+      pdf.setFontSize(14);
+      pdf.setFont('helvetica', 'bold');
+      pdf.text('VOTER TURNOUT VISUALIZATION', 14, currentY);
+      currentY += 10;
+
+      const turnoutVal = (stats.votesCast / (stats.totalStaff || 1)) * 100;
+      pdf.setFillColor(243, 244, 246);
+      pdf.rect(14, currentY, 120, 8, 'F');
+      pdf.setFillColor(37, 99, 235);
+      pdf.rect(14, currentY, (turnoutVal / 100) * 120, 8, 'F');
+      pdf.setFontSize(10);
+      pdf.setTextColor(0, 0, 0);
+      pdf.text(`${Math.round(turnoutVal)}% Turnout`, 140, currentY + 6);
+      currentY += 25;
+
+      // Results for each position
+      filteredResults.forEach((pos) => {
+        if (currentY > 230) {
+          pdf.addPage();
+          currentY = 20;
+        }
+
+        pdf.setFillColor(243, 244, 246);
+        pdf.rect(14, currentY, 182, 10, 'F');
+        pdf.setTextColor(31, 41, 55);
+        pdf.setFontSize(12);
+        pdf.setFont('helvetica', 'bold');
+        pdf.text(pos.title.toUpperCase(), 16, currentY + 7);
+        currentY += 15;
+
+        const isUnopposed = pos.candidates.length === 1;
+        const totalPosVotes = isUnopposed ? stats.votesCast : pos.candidates.reduce((sum: number, c: any) => sum + (c.voteCount || 0), 0);
+        
+        const tableBody = pos.candidates
+          .sort((a: any, b: any) => (b.voteCount || 0) - (a.voteCount || 0))
+          .map((c: any, idx: number) => {
+            const pct = totalPosVotes > 0 ? Math.round((c.voteCount / totalPosVotes) * 100) : 0;
+            return [idx + 1, c.name, c.voteCount.toString(), `${pct}%`];
+          });
+
+        autoTable(pdf, {
+          startY: currentY,
+          head: [['Rank', 'Candidate', 'Votes', 'Percentage']],
+          body: tableBody,
+          theme: 'grid',
+          headStyles: { fillColor: [71, 85, 105], fontSize: 10 },
+          bodyStyles: { fontSize: 9 },
+          margin: { left: 14 }
+        });
+
+        currentY = (pdf as any).lastAutoTable.finalY + 15;
+      });
+
+      // Footer
+      const pageCount = (pdf as any).internal.getNumberOfPages();
+      for (let i = 1; i <= pageCount; i++) {
+        pdf.setPage(i);
+        pdf.setFontSize(8);
+        pdf.setTextColor(156, 163, 175);
+        pdf.text('This is an official computer-generated report for the DUR Welfare Election 2026.', 105, 285, { align: 'center' });
+        pdf.text(`Page ${i} of ${pageCount}`, 105, 290, { align: 'center' });
+      }
+
       pdf.save(`DUR-Election-Results-${new Date().toISOString().split('T')[0]}.pdf`);
     } catch (error) {
       console.error('Export error:', error);
@@ -247,31 +366,45 @@ function ResultsView() {
     }
   };
 
+  const filteredResults = detailedResults.filter(pos => 
+    pos.title?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    pos.candidates?.some((c: any) => c.name?.toLowerCase().includes(searchTerm.toLowerCase()))
+  );
+
   return (
     <div>
-      <div className="flex justify-between items-center mb-6">
+      <div className="flex flex-col lg:flex-row justify-between lg:items-center mb-8 gap-4">
         <h2 className="text-2xl font-bold text-zinc-900 dark:text-zinc-100">Election Results</h2>
-        <div className="flex items-center gap-4">
-          <button 
-            onClick={handleExportPDF}
-            disabled={isExporting || isLoading}
-            className="flex items-center text-sm bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 font-medium shadow-sm transition-all disabled:opacity-50"
-          >
-            {isExporting ? (
-              <RefreshCw className="w-4 h-4 mr-2 animate-spin" />
-            ) : (
-              <FileText className="w-4 h-4 mr-2" />
-            )}
-            Export Report (PDF)
-          </button>
-          <button 
-            onClick={fetchStats}
-            disabled={isLoading}
-            className="flex items-center text-sm text-blue-600 hover:text-blue-700 font-medium"
-          >
-            <RefreshCw className={`w-4 h-4 mr-2 ${isLoading ? 'animate-spin' : ''}`} />
-            Refresh
-          </button>
+        <div className="flex flex-col sm:flex-row items-center gap-4">
+          <input 
+            type="text" 
+            placeholder="Search positions or candidates..." 
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            className="w-full sm:w-64 px-4 py-2 border rounded-md dark:bg-zinc-700 dark:border-zinc-600 focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none text-sm"
+          />
+          <div className="flex items-center gap-3 w-full sm:w-auto">
+            <button 
+              onClick={handleExportPDF}
+              disabled={isExporting || isLoading}
+              className="flex-1 sm:flex-none flex items-center justify-center text-sm bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 font-medium shadow-sm transition-all disabled:opacity-50"
+            >
+              {isExporting ? (
+                <RefreshCw className="w-4 h-4 mr-2 animate-spin" />
+              ) : (
+                <FileText className="w-4 h-4 mr-2" />
+              )}
+              Export Report
+            </button>
+            <button 
+              onClick={fetchStats}
+              disabled={isLoading}
+              className="flex items-center text-sm text-blue-600 hover:text-blue-700 font-medium"
+            >
+              <RefreshCw className={`w-4 h-4 mr-2 ${isLoading ? 'animate-spin' : ''}`} />
+              Refresh
+            </button>
+          </div>
         </div>
       </div>
       
@@ -279,7 +412,7 @@ function ResultsView() {
         <StatCard title="Total Staff" value={stats.totalStaff.toString()} />
         <StatCard title="Votes Cast" value={stats.votesCast.toString()} />
         <StatCard title="Turnout" value={stats.turnout} />
-        <StatCard title="Time Remaining" value="4d 5h" />
+        <StatCard title="Time Remaining" value={timeRemaining} />
       </div>
       
       <div className="bg-white dark:bg-zinc-800 rounded-lg shadow p-6 mb-6">
@@ -299,26 +432,33 @@ function ResultsView() {
         )}
 
         <div className="space-y-12" ref={resultsRef}>
-          {detailedResults.map((position, index) => {
+          {filteredResults.map((position, index) => {
             const totalVotes = position.candidates.reduce((sum: number, c: any) => sum + (c.voteCount || 0), 0);
             const sortedCandidates = [...position.candidates].sort((a: any, b: any) => (b.voteCount || 0) - (a.voteCount || 0));
             const winner = sortedCandidates[0];
             const runnerUp = sortedCandidates[1];
-            const margin = winner && runnerUp ? winner.voteCount - runnerUp.voteCount : 0;
-            const leadPercentage = totalVotes > 0 && winner ? Math.round((winner.voteCount / totalVotes) * 100) : 0;
+            const isUnopposed = position.candidates.length === 1;
+            const margin = winner && runnerUp ? winner.voteCount - runnerUp.voteCount : (isUnopposed ? winner?.voteCount : 0);
+            const leadPercentage = isUnopposed 
+              ? (stats.votesCast > 0 ? Math.round((winner?.voteCount / stats.votesCast) * 100) : 0)
+              : (totalVotes > 0 ? Math.round((winner.voteCount / totalVotes) * 100) : 0);
+            const approvalRating = isUnopposed && stats.votesCast > 0 ? Math.round((winner?.voteCount / stats.votesCast) * 100) : 0;
 
             return (
               <div key={position.slug || position.id || `pos-${index}`} className="bg-zinc-50 dark:bg-zinc-900/50 rounded-2xl p-6 border border-zinc-100 dark:border-zinc-800">
                 <div className="flex items-start justify-between mb-8">
                   <div>
-                    <h4 className="text-lg font-black text-zinc-900 dark:text-zinc-50 uppercase tracking-tight">
+                    <h4 className="text-lg font-black text-zinc-900 dark:text-zinc-50 uppercase tracking-tight flex items-center gap-2">
                       {position.title}
+                      {isUnopposed && (
+                        <span className="text-[10px] bg-zinc-200 dark:bg-zinc-800 text-zinc-600 dark:text-zinc-400 px-2 py-0.5 rounded-md tracking-widest">UNOPPOSED</span>
+                      )}
                     </h4>
                     <p className="text-xs text-zinc-500 font-medium mt-1">{position.description || 'Results for ' + position.title}</p>
                   </div>
                   <div className="text-right">
                     <div className="px-3 py-1 bg-blue-100 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 rounded-full text-[10px] font-black uppercase tracking-widest border border-blue-200 dark:border-blue-800/50">
-                      {totalVotes} Total Votes
+                      {isUnopposed ? `${winner?.voteCount} Yes Votes` : `${totalVotes} Total Votes`}
                     </div>
                   </div>
                 </div>
@@ -329,23 +469,27 @@ function ResultsView() {
                     <div className="bg-white dark:bg-zinc-800 p-4 rounded-xl border border-zinc-100 dark:border-zinc-700 shadow-sm">
                       <div className="flex items-center gap-2 text-zinc-500 dark:text-zinc-400 mb-1">
                         <TrendingUp className="w-3.5 h-3.5 text-green-500" />
-                        <span className="text-[10px] font-bold uppercase tracking-wider">Current Leader</span>
+                        <span className="text-[10px] font-bold uppercase tracking-wider">{isUnopposed ? 'Candidate' : 'Current Leader'}</span>
                       </div>
                       <p className="text-sm font-black text-zinc-900 dark:text-zinc-50 truncate">
                         {winner?.name}
                       </p>
-                      <p className="text-[10px] text-zinc-400 font-medium mt-0.5">{leadPercentage}% of total votes</p>
+                      <p className="text-[10px] text-zinc-400 font-medium mt-0.5">
+                        {isUnopposed ? `${approvalRating}% Overall Approval` : `${leadPercentage}% of total votes`}
+                      </p>
                     </div>
                     
                     <div className="bg-white dark:bg-zinc-800 p-4 rounded-xl border border-zinc-100 dark:border-zinc-700 shadow-sm">
                       <div className="flex items-center gap-2 text-zinc-500 dark:text-zinc-400 mb-1">
                         <BarChart2 className="w-3.5 h-3.5 text-blue-500" />
-                        <span className="text-[10px] font-bold uppercase tracking-wider">Margin of Lead</span>
+                        <span className="text-[10px] font-bold uppercase tracking-wider">{isUnopposed ? 'Total Yes Votes' : 'Margin of Lead'}</span>
                       </div>
                       <p className="text-sm font-black text-zinc-900 dark:text-zinc-50">
-                        {margin} {margin === 1 ? 'Vote' : 'Votes'}
+                        {isUnopposed ? winner?.voteCount : margin} { (isUnopposed ? winner?.voteCount : margin) === 1 ? 'Vote' : 'Votes'}
                       </p>
-                      <p className="text-[10px] text-zinc-400 font-medium mt-0.5">Ahead of second place</p>
+                      <p className="text-[10px] text-zinc-400 font-medium mt-0.5">
+                        {isUnopposed ? 'Votes in favor' : 'Ahead of second place'}
+                      </p>
                     </div>
 
                     <div className="bg-white dark:bg-zinc-800 p-4 rounded-xl border border-zinc-100 dark:border-zinc-700 shadow-sm">
@@ -354,7 +498,7 @@ function ResultsView() {
                         <span className="text-[10px] font-bold uppercase tracking-wider">Status</span>
                       </div>
                       <p className="text-sm font-black text-zinc-900 dark:text-zinc-50 uppercase tracking-tighter">
-                        {margin > (totalVotes * 0.1) ? 'Strong Lead' : 'Competitive'}
+                        {isUnopposed ? 'Unopposed' : margin > (totalVotes * 0.1) ? 'Strong Lead' : 'Competitive'}
                       </p>
                       <p className="text-[10px] text-zinc-400 font-medium mt-0.5">Based on current count</p>
                     </div>
@@ -368,8 +512,9 @@ function ResultsView() {
                     position.candidates
                       .sort((a: any, b: any) => (b.voteCount || 0) - (a.voteCount || 0))
                       .map((candidate: any) => {
-                        const totalVotesForPos = position.candidates.reduce((sum: number, c: any) => sum + (c.voteCount || 0), 0);
-                        const percentage = totalVotesForPos > 0 ? Math.round(((candidate.voteCount || 0) / totalVotesForPos) * 100) : 0;
+                        const isUnopposed = position.candidates.length === 1;
+                        const totalDenominator = isUnopposed ? stats.votesCast : position.candidates.reduce((sum: number, c: any) => sum + (c.voteCount || 0), 0);
+                        const percentage = totalDenominator > 0 ? Math.round(((candidate.voteCount || 0) / totalDenominator) * 100) : 0;
                         
                         const initials = candidate.name
                           .split(' ')
@@ -444,8 +589,10 @@ function ResultsView() {
           })}
         </div>
         
-        {detailedResults.length === 0 && (
-          <p className="text-center text-zinc-500 py-8">No results data available yet.</p>
+        {filteredResults.length === 0 && (
+          <p className="text-center text-zinc-500 py-12 bg-zinc-50 dark:bg-zinc-900/50 rounded-2xl border border-dashed border-zinc-200 dark:border-zinc-800">
+            {searchTerm ? `No results found for "${searchTerm}"` : 'No election data available yet.'}
+          </p>
         )}
       </div>
     </div>
@@ -469,6 +616,7 @@ function StaffManagement() {
   const [staffList, setStaffList] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [searchTerm, setSearchTerm] = useState('');
 
   const fetchStaff = useCallback(async () => {
     try {
@@ -492,7 +640,7 @@ function StaffManagement() {
   };
   
   const downloadTemplate = () => {
-    const csvContent = "data:text/csv;charset=utf-8,staff_id,email\nSTF001,user1@example.com\nSTF002,user2@example.com";
+    const csvContent = "data:text/csv;charset=utf-8,staff_id,full_name,email,phone\nSTF001,John Doe,user1@example.com,233555123456\nSTF002,Jane Smith,user2@example.com,233555654321";
     const encodedUri = encodeURI(csvContent);
     const link = document.createElement("a");
     link.setAttribute("href", encodedUri);
@@ -554,6 +702,12 @@ function StaffManagement() {
      }
    };
 
+  const filteredStaff = staffList.filter(staff => 
+    staff.staff_id?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    staff.email?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    staff.full_name?.toLowerCase().includes(searchTerm.toLowerCase())
+  );
+
   return (
     <div>
       <h2 className="text-2xl font-bold text-zinc-900 dark:text-zinc-100 mb-6">Manage Staff IDs</h2>
@@ -571,7 +725,7 @@ function StaffManagement() {
           </button>
         </div>
         <p className="text-sm text-zinc-500 dark:text-zinc-400 mb-4">
-          Upload a CSV file containing columns: <code className="bg-zinc-100 dark:bg-zinc-700 px-1 py-0.5 rounded">staff_id</code>, <code className="bg-zinc-100 dark:bg-zinc-700 px-1 py-0.5 rounded">email</code>, <code className="bg-zinc-100 dark:bg-zinc-700 px-1 py-0.5 rounded">phone</code> (optional).
+          Upload a CSV file containing columns: <code className="bg-zinc-100 dark:bg-zinc-700 px-1 py-0.5 rounded">staff_id</code>, <code className="bg-zinc-100 dark:bg-zinc-700 px-1 py-0.5 rounded">full_name</code>, <code className="bg-zinc-100 dark:bg-zinc-700 px-1 py-0.5 rounded">email</code>, <code className="bg-zinc-100 dark:bg-zinc-700 px-1 py-0.5 rounded">phone</code> (optional).
         </p>
         
         {uploadStatus && (
@@ -608,7 +762,9 @@ function StaffManagement() {
         <div className="flex flex-col sm:flex-row justify-between items-center mb-6 gap-4">
           <input 
             type="text" 
-            placeholder="Search Staff ID or Email..." 
+            placeholder="Search Staff ID, Name or Email..." 
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
             className="w-full sm:w-auto px-4 py-2 border rounded-md dark:bg-zinc-700 dark:border-zinc-600 focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none"
           />
           <div className="flex gap-2">
@@ -675,6 +831,7 @@ function StaffManagement() {
             <thead>
               <tr className="border-b border-zinc-200 dark:border-zinc-700">
                 <th className="pb-3 font-medium text-zinc-500 dark:text-zinc-400">Staff ID</th>
+                <th className="pb-3 font-medium text-zinc-500 dark:text-zinc-400">Full Name</th>
                 <th className="pb-3 font-medium text-zinc-500 dark:text-zinc-400">Email</th>
                 <th className="pb-3 font-medium text-zinc-500 dark:text-zinc-400">Phone</th>
                 <th className="pb-3 font-medium text-zinc-500 dark:text-zinc-400">Status</th>
@@ -685,16 +842,19 @@ function StaffManagement() {
             <tbody className="divide-y divide-zinc-200 dark:divide-zinc-700">
               {isLoading ? (
                 <tr>
-                  <td colSpan={6} className="py-8 text-center text-zinc-500">Loading staff data...</td>
+                  <td colSpan={7} className="py-8 text-center text-zinc-500">Loading staff data...</td>
                 </tr>
-              ) : staffList.length === 0 ? (
+              ) : filteredStaff.length === 0 ? (
                 <tr>
-                  <td colSpan={6} className="py-8 text-center text-zinc-500">No staff records found. Upload a CSV to get started.</td>
+                  <td colSpan={7} className="py-8 text-center text-zinc-500">
+                    {searchTerm ? 'No results found matching your search.' : 'No staff records found. Upload a CSV to get started.'}
+                  </td>
                 </tr>
               ) : (
-                staffList.map((staff) => (
+                filteredStaff.map((staff) => (
                   <tr key={staff.id || staff.staff_id} className="group hover:bg-zinc-50 dark:hover:bg-zinc-800/50 transition-colors">
                     <td className="py-3 font-mono text-zinc-900 dark:text-zinc-200">{staff.staff_id}</td>
+                    <td className="py-3 text-zinc-900 dark:text-zinc-200 font-medium">{staff.full_name || '-'}</td>
                     <td className="py-3 text-zinc-600 dark:text-zinc-400">{staff.email}</td>
                     <td className="py-3 text-zinc-600 dark:text-zinc-400">{staff.phone || '-'}</td>
                     <td className="py-3">
@@ -758,6 +918,7 @@ function CandidateManagement() {
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [candidatesList, setCandidatesList] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [searchTerm, setSearchTerm] = useState('');
   const { show } = useToast();
 
   const fetchCandidates = useCallback(async () => {
@@ -828,6 +989,12 @@ function CandidateManagement() {
       show({ title: 'Delete Failed', message: 'An unexpected error occurred.', variant: 'error' });
     }
   };
+
+  const filteredCandidates = candidatesList.filter(candidate => 
+    candidate.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    candidate.positions?.title?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    candidate.role?.toLowerCase().includes(searchTerm.toLowerCase())
+  );
 
   return (
     <div>
@@ -925,8 +1092,15 @@ function CandidateManagement() {
 
   {/* Candidates List Table */}
   <div className="bg-white dark:bg-zinc-800 rounded-lg shadow overflow-hidden">
-    <div className="p-6 border-b border-zinc-200 dark:border-zinc-700">
+    <div className="p-6 border-b border-zinc-200 dark:border-zinc-700 flex flex-col sm:flex-row justify-between items-center gap-4">
       <h3 className="text-lg font-semibold text-zinc-900 dark:text-zinc-100">Registered Candidates</h3>
+      <input 
+        type="text" 
+        placeholder="Search candidates, roles..." 
+        value={searchTerm}
+        onChange={(e) => setSearchTerm(e.target.value)}
+        className="w-full sm:w-64 px-4 py-2 border rounded-md dark:bg-zinc-700 dark:border-zinc-600 focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none text-sm"
+      />
     </div>
     <div className="overflow-x-auto">
       <table className="w-full text-left min-w-[700px]">
@@ -943,12 +1117,14 @@ function CandidateManagement() {
             <tr>
               <td colSpan={4} className="px-6 py-12 text-center text-zinc-500">Loading candidates...</td>
             </tr>
-          ) : candidatesList.length === 0 ? (
+          ) : filteredCandidates.length === 0 ? (
             <tr>
-              <td colSpan={4} className="px-6 py-12 text-center text-zinc-500">No candidates found. Upload a CSV to get started.</td>
+              <td colSpan={4} className="px-6 py-12 text-center text-zinc-500">
+                {searchTerm ? 'No results found matching your search.' : 'No candidates found. Upload a CSV to get started.'}
+              </td>
             </tr>
           ) : (
-            candidatesList.map((candidate) => (
+            filteredCandidates.map((candidate) => (
               <tr key={candidate.id} className="group hover:bg-zinc-50 dark:hover:bg-zinc-800/50 transition-colors">
                 <td className="px-6 py-4">
                   <div className="flex items-center gap-3">

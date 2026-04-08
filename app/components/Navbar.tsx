@@ -1,8 +1,9 @@
 
 import Link from 'next/link';
-import { Landmark, ShieldCheck } from 'lucide-react';
+import { Landmark, ShieldCheck, User, LogOut } from 'lucide-react';
+import { logoutStaff } from '../actions/auth';
 
-export default function Navbar() {
+export default function Navbar({ staff }: { staff?: any }) {
   return (
     <nav className="w-full bg-white/90 dark:bg-zinc-950/90 border-b border-zinc-200 dark:border-zinc-800 py-3 px-4 sm:px-12 flex items-center justify-between sticky top-0 z-50 backdrop-blur-md">
       <div className="flex items-center gap-4">
@@ -21,17 +22,39 @@ export default function Navbar() {
         </Link>
       </div>
 
-      <div className="flex items-center gap-3 sm:gap-8">
-        <div className="hidden lg:flex items-center gap-2 text-zinc-400 dark:text-zinc-500">
-          <ShieldCheck className="w-4 h-4" />
-          <span className="text-xs font-medium">Secure Portal</span>
-        </div>
-        <Link 
-          href="/admin/login" 
-          className="text-[10px] sm:text-xs font-bold uppercase tracking-widest text-zinc-500 hover:text-blue-600 dark:text-zinc-400 dark:hover:text-blue-400 transition-colors border border-zinc-200 dark:border-zinc-800 px-2 py-1 rounded-md sm:border-none sm:p-0"
-        >
-          Admin
-        </Link>
+      <div className="flex items-center gap-3 sm:gap-6">
+        {staff ? (
+          <div className="flex items-center gap-3 sm:gap-6">
+            <div className="flex items-center gap-2 px-3 py-1.5 bg-zinc-100 dark:bg-zinc-800 rounded-full border border-zinc-200 dark:border-zinc-700">
+              <User className="w-3.5 h-3.5 text-blue-600 dark:text-blue-400" />
+              <span className="text-xs font-bold text-zinc-700 dark:text-zinc-300">
+                {staff.full_name || staff.staff_id}
+              </span>
+            </div>
+            <form action={logoutStaff}>
+              <button 
+                type="submit"
+                className="flex items-center gap-1.5 text-xs font-bold text-zinc-500 hover:text-red-600 dark:text-zinc-400 dark:hover:text-red-400 transition-colors"
+              >
+                <LogOut className="w-3.5 h-3.5" />
+                <span className="hidden xs:inline">Logout</span>
+              </button>
+            </form>
+          </div>
+        ) : (
+          <div className="flex items-center gap-3 sm:gap-8">
+            <div className="hidden lg:flex items-center gap-2 text-zinc-400 dark:text-zinc-500">
+              <ShieldCheck className="w-4 h-4" />
+              <span className="text-xs font-medium">Secure Portal</span>
+            </div>
+            <Link 
+              href="/admin/login" 
+              className="text-[10px] sm:text-xs font-bold uppercase tracking-widest text-zinc-500 hover:text-blue-600 dark:text-zinc-400 dark:hover:text-blue-400 transition-colors border border-zinc-200 dark:border-zinc-800 px-2 py-1 rounded-md sm:border-none sm:p-0"
+            >
+              Admin
+            </Link>
+          </div>
+        )}
       </div>
     </nav>
   );

@@ -4,9 +4,10 @@
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import ElectionBanner from '../components/ElectionBanner';
-import { CheckCircle2, AlertCircle, ShieldCheck, ArrowLeft, Loader2, Send } from 'lucide-react';
+import { CheckCircle2, AlertCircle, ShieldCheck, ArrowLeft, Loader2, Send, LogOut, X } from 'lucide-react';
 import { submitVote } from '../actions/vote';
 import { createClient } from '../utils/supabase/client';
+import { logoutStaff } from '../actions/auth';
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
@@ -113,6 +114,15 @@ export default function ReviewPage() {
             <ShieldCheck className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
             <span className="text-[8px] sm:text-[10px] font-black uppercase tracking-widest">Final Review</span>
           </div>
+          <form action={logoutStaff} className="ml-2">
+            <button 
+              type="submit"
+              className="flex items-center gap-1.5 px-3 py-1.5 bg-red-50 dark:bg-red-900/10 text-red-600 dark:text-red-400 font-bold rounded-lg text-[10px] uppercase tracking-wider border border-red-100 dark:border-red-800/50 hover:bg-red-100 transition-colors"
+            >
+              <LogOut className="w-3.5 h-3.5" />
+              Logout
+            </button>
+          </form>
         </div>
 
         <div className="bg-white dark:bg-zinc-900 rounded-2xl sm:rounded-3xl border border-zinc-200 dark:border-zinc-800 shadow-sm overflow-hidden">
@@ -128,15 +138,18 @@ export default function ReviewPage() {
 
           <div className="p-4 sm:p-12 space-y-4 sm:space-y-6">
             {positions.map((pos) => {
-              const candidateId = selections[pos.id];
-              const candidateName = candidatesById[candidateId]?.name;
+              const selection = selections[pos.id];
+              const isNoVote = selection === 'NO_VOTE';
+              const candidateName = isNoVote ? 'NO VOTE (Abstained)' : candidatesById[selection]?.name;
 
               return (
                 <div 
                   key={pos.id}
                   className={`p-4 sm:p-6 rounded-xl sm:rounded-2xl border transition-all ${
                     candidateName 
-                      ? 'bg-zinc-50 dark:bg-zinc-800/50 border-zinc-100 dark:border-zinc-700 shadow-sm' 
+                      ? isNoVote 
+                        ? 'bg-zinc-100/50 dark:bg-zinc-800/30 border-zinc-200 dark:border-zinc-700'
+                        : 'bg-zinc-50 dark:bg-zinc-800/50 border-zinc-100 dark:border-zinc-700 shadow-sm' 
                       : 'bg-red-50/50 dark:bg-red-900/10 border-red-100 dark:border-red-900/30'
                   }`}
                 >
@@ -145,14 +158,20 @@ export default function ReviewPage() {
                       <p className="text-[8px] sm:text-[10px] font-black uppercase tracking-widest text-zinc-400 dark:text-zinc-500 mb-0.5 sm:mb-1">
                         {pos.title}
                       </p>
-                      <h3 className={`text-lg sm:text-xl font-bold ${candidateName ? 'text-zinc-900 dark:text-zinc-100' : 'text-red-600 dark:text-red-400'}`}>
+                      <h3 className={`text-lg sm:text-xl font-bold ${candidateName ? isNoVote ? 'text-zinc-500 dark:text-zinc-400 italic' : 'text-zinc-900 dark:text-zinc-100' : 'text-red-600 dark:text-red-400'}`}>
                         {candidateName || 'No Selection Made'}
                       </h3>
                     </div>
                     {candidateName && (
-                      <div className="flex items-center justify-center sm:justify-start gap-2 text-green-600 dark:text-green-400 px-3 py-1 bg-green-50 dark:bg-green-900/20 rounded-full border border-green-100 dark:border-green-800/50 self-center">
-                        <CheckCircle2 className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
-                        <span className="text-[8px] sm:text-[10px] font-bold uppercase tracking-wider">Confirmed</span>
+                      <div className={`flex items-center justify-center sm:justify-start gap-2 px-3 py-1 rounded-full border self-center ${
+                        isNoVote 
+                          ? 'text-zinc-500 dark:text-zinc-400 bg-zinc-100 dark:bg-zinc-800/50 border-zinc-200 dark:border-zinc-700'
+                          : 'text-green-600 dark:text-green-400 bg-green-50 dark:bg-green-900/20 border-green-100 dark:border-green-800/50'
+                      }`}>
+                        {isNoVote ? <X className="w-3.5 h-3.5 sm:w-4 sm:h-4" /> : <CheckCircle2 className="w-3.5 h-3.5 sm:w-4 sm:h-4" />}
+                        <span className="text-[8px] sm:text-[10px] font-bold uppercase tracking-wider">
+                          {isNoVote ? 'Abstained' : 'Confirmed'}
+                        </span>
                       </div>
                     )}
                   </div>

@@ -179,20 +179,33 @@ export async function getDetailedResults() {
     .from('candidates')
     .select('id,name,role,bio,image_url,position_id')
   
-  // Direct aggregation from votes table using Service Role to bypass RLS and avoid stale views
-  const { data: votes, error: votesError } = await supabaseSR
-    .from('votes')
-    .select('candidate_id,position_id')
+  // Use the database view for aggregated counts - much faster for high concurrency
+  const { data: voteCounts, error: votesError } = await supabaseSR
+    .from('candidate_vote_counts')
+    .select('candidate_id, position_id, vote_count')
   
   if (votesError) {
-    console.error('Failed to fetch raw votes:', votesError)
+    console.error('Failed to fetch aggregated votes:', votesError)
   }
   
   const countMap = new Map<string, number>()
-  ;(votes || []).forEach(v => {
-    const key = `${v.position_id}:${v.candidate_id}`
-    countMap.set(key, (countMap.get(key) || 0) + 1)
-  })
+  
+  // Fallback to direct aggregation if the view is empty or fails
+  if (!voteCounts || voteCounts.length === 0) {
+    const { data: rawVotes } = await supabaseSR
+      .from('votes')
+      .select('candidate_id, position_id')
+    
+    ;(rawVotes || []).forEach(v => {
+      const key = `${v.position_id.toLowerCase()}:${v.candidate_id}`
+      countMap.set(key, (countMap.get(key) || 0) + 1)
+    })
+  } else {
+    voteCounts.forEach(v => {
+      const key = `${v.position_id.toLowerCase()}:${v.candidate_id}`
+      countMap.set(key, v.vote_count)
+    })
+  }
   
   return positions.map((pos: any) => {
     const posCandidates = (candidates || []).filter((c: any) => c.position_id === pos.slug)

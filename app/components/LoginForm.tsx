@@ -22,6 +22,9 @@ export default function LoginForm() {
     setIsLoading(true);
     setError('');
 
+    // Clear any previous (stale) selections from this browser
+    localStorage.removeItem('election_selections');
+
     const formData = new FormData();
     formData.append('staffId', staffId);
 

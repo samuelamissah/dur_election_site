@@ -1,7 +1,7 @@
 
 import { useState } from 'react';
 import Image from 'next/image';
-import { User, Check } from 'lucide-react';
+import { User, Check, X } from 'lucide-react';
 
 interface Candidate {
   id: string;
@@ -13,12 +13,22 @@ interface Candidate {
 
 interface CandidateCardProps {
   candidate: Candidate;
-  isSelected: boolean;
+  isSelected: boolean; // For contested: is this candidate selected? For unopposed: is YES selected?
+  isNoSelected?: boolean; // Only for unopposed
   onSelect: (id: string) => void;
+  isUnopposed?: boolean;
 }
 
-export default function CandidateCard({ candidate, isSelected, onSelect }: CandidateCardProps) {
+export default function CandidateCard({ 
+  candidate, 
+  isSelected, 
+  isNoSelected = false,
+  onSelect,
+  isUnopposed = false 
+}: CandidateCardProps) {
   const [imageError, setImageError] = useState(false);
+
+  const isNoVote = isUnopposed && isSelected && false; // We'll handle NO_VOTE differently
 
   const safeSrc = (() => {
     const u = candidate.imageUrl || '';
@@ -36,23 +46,27 @@ export default function CandidateCard({ candidate, isSelected, onSelect }: Candi
 
   return (
     <div 
-      className={`group relative flex flex-col items-center p-6 sm:p-8 bg-white dark:bg-zinc-800/50 rounded-2xl border-2 transition-all duration-300 cursor-pointer overflow-hidden ${
-        isSelected 
+      className={`group relative flex flex-col items-center p-6 sm:p-8 bg-white dark:bg-zinc-800/50 rounded-2xl border-2 transition-all duration-300 overflow-hidden ${
+        isSelected && !isUnopposed
           ? 'border-blue-600 ring-4 ring-blue-600/10 bg-blue-50/30 dark:bg-blue-900/10 shadow-xl shadow-blue-500/10 scale-[1.02]' 
-          : 'border-zinc-100 dark:border-zinc-800 hover:border-blue-200 dark:hover:border-blue-900/50 hover:bg-zinc-50 dark:hover:bg-zinc-800/80'
+          : isUnopposed
+            ? 'border-zinc-100 dark:border-zinc-800 cursor-default'
+            : 'border-zinc-100 dark:border-zinc-800 hover:border-blue-200 dark:hover:border-blue-900/50 hover:bg-zinc-50 dark:hover:bg-zinc-800/80 cursor-pointer'
       }`}
-      onClick={() => onSelect(candidate.id)}
+      onClick={() => !isUnopposed && onSelect(candidate.id)}
     >
-      {/* Selection Badge */}
-      <div className={`absolute top-3 right-3 sm:top-4 sm:right-4 w-6 h-6 sm:w-8 sm:h-8 rounded-full flex items-center justify-center transition-all duration-300 ${
-        isSelected ? 'bg-blue-600 text-white scale-110' : 'bg-zinc-100 dark:bg-zinc-800 text-zinc-300 dark:text-zinc-600 scale-90'
-      }`}>
-        <Check className={`w-4 h-4 sm:w-5 sm:h-5 ${isSelected ? 'opacity-100' : 'opacity-0'}`} />
-      </div>
+      {/* Selection Badge (only for contested) */}
+      {!isUnopposed && (
+        <div className={`absolute top-3 right-3 sm:top-4 sm:right-4 w-6 h-6 sm:w-8 sm:h-8 rounded-full flex items-center justify-center transition-all duration-300 ${
+          isSelected ? 'bg-blue-600 text-white scale-110' : 'bg-zinc-100 dark:bg-zinc-800 text-zinc-300 dark:text-zinc-600 scale-90'
+        }`}>
+          <Check className={`w-4 h-4 sm:w-5 sm:h-5 ${isSelected ? 'opacity-100' : 'opacity-0'}`} />
+        </div>
+      )}
 
       <div className="relative w-24 h-24 sm:w-32 sm:h-32 mb-4 sm:mb-6 group-hover:scale-105 transition-transform duration-500">
         <div className={`absolute inset-0 rounded-full border-4 transition-colors duration-300 ${
-          isSelected ? 'border-blue-600/20' : 'border-zinc-100 dark:border-zinc-800'
+          isSelected && !isUnopposed ? 'border-blue-600/20' : 'border-zinc-100 dark:border-zinc-800'
         }`} />
         <div className="w-full h-full rounded-full overflow-hidden shadow-inner relative">
           {safeSrc && !imageError ? (
@@ -74,7 +88,7 @@ export default function CandidateCard({ candidate, isSelected, onSelect }: Candi
       
       <div className="text-center space-y-1 sm:space-y-2 mb-4 sm:mb-6">
         <h3 className={`text-lg sm:text-xl font-extrabold transition-colors duration-300 ${
-          isSelected ? 'text-blue-600 dark:text-blue-400' : 'text-zinc-900 dark:text-zinc-100'
+          isSelected && !isUnopposed ? 'text-blue-600 dark:text-blue-400' : 'text-zinc-900 dark:text-zinc-100'
         }`}>
           {candidate.name}
         </h3>
@@ -92,13 +106,51 @@ export default function CandidateCard({ candidate, isSelected, onSelect }: Candi
         </p>
       )}
 
-      <div className={`mt-6 sm:mt-8 w-full py-2 sm:py-3 px-4 sm:px-6 rounded-xl text-xs sm:text-sm font-bold transition-all duration-300 flex items-center justify-center gap-2 ${
-        isSelected 
-          ? 'bg-blue-600 text-white shadow-lg shadow-blue-600/20' 
-          : 'bg-zinc-100 dark:bg-zinc-800 text-zinc-600 dark:text-zinc-400 group-hover:bg-blue-50 group-hover:text-blue-600'
-      }`}>
-        {isSelected ? 'Selected' : 'Choose Candidate'}
-      </div>
+      {isUnopposed ? (
+        <div className="mt-8 w-full flex flex-col gap-3">
+          <p className="text-[10px] font-black uppercase tracking-widest text-zinc-400 text-center mb-1">
+            Unopposed Candidate
+          </p>
+          <div className="grid grid-cols-2 gap-3">
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                onSelect(candidate.id);
+              }}
+              className={`flex items-center justify-center gap-2 py-3 rounded-xl font-bold transition-all ${
+                isSelected 
+                  ? 'bg-green-600 text-white shadow-lg shadow-green-600/20' 
+                  : 'bg-zinc-100 dark:bg-zinc-800 text-zinc-600 dark:text-zinc-400 hover:bg-green-50 hover:text-green-600'
+              }`}
+            >
+              <Check className="w-4 h-4" />
+              Vote YES
+            </button>
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                onSelect('NO_VOTE');
+              }}
+              className={`flex items-center justify-center gap-2 py-3 rounded-xl font-bold transition-all ${
+                isNoSelected 
+                  ? 'bg-red-600 text-white shadow-lg shadow-red-600/20' 
+                  : 'bg-zinc-100 dark:bg-zinc-800 text-zinc-600 dark:text-zinc-400 hover:bg-red-50 hover:text-red-600'
+              }`}
+            >
+              <X className="w-4 h-4" />
+              Vote NO
+            </button>
+          </div>
+        </div>
+      ) : (
+        <div className={`mt-6 sm:mt-8 w-full py-2 sm:py-3 px-4 sm:px-6 rounded-xl text-xs sm:text-sm font-bold transition-all duration-300 flex items-center justify-center gap-2 ${
+          isSelected 
+            ? 'bg-blue-600 text-white shadow-lg shadow-blue-600/20' 
+            : 'bg-zinc-100 dark:bg-zinc-800 text-zinc-600 dark:text-zinc-400 group-hover:bg-blue-50 group-hover:text-blue-600'
+        }`}>
+          {isSelected ? 'Selected' : 'Choose Candidate'}
+        </div>
+      )}
     </div>
   );
 }
