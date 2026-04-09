@@ -10,10 +10,9 @@ import { sendThankYouEmail } from './admin'
 export async function submitVote(selections: Record<string, string>) {
   const cookieStore = await cookies()
   const staffId = cookieStore.get('staff_session')?.value
-  const isVerified = cookieStore.get('staff_verified')?.value === 'true'
 
-  if (!staffId || !isVerified) {
-    return { error: 'Unauthorized: No verified session' }
+  if (!staffId) {
+    return { error: 'Unauthorized: No active session' }
   }
 
   // Transform selections object into array, filtering out "NO_VOTE" selections

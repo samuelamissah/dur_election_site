@@ -49,46 +49,7 @@ export async function loginWithStaffId(formData: FormData) {
     maxAge: 60 * 60 * 24 // 1 day
   })
 
-  // After staff ID login, redirect to verification page
-  redirect('/verify')
-}
-
-export async function verifyStaffDob(formData: FormData) {
-  const cookieStore = await cookies()
-  const staffId = cookieStore.get('staff_session')?.value
-
-  if (!staffId) {
-    return { error: 'Unauthorized: No active session' }
-  }
-
-  const dob = formData.get('dob') as string
-  if (!dob) {
-    return { error: 'Date of Birth is required' }
-  }
-
-  const supabase = createServiceClient()
-  const { data: staff, error } = await supabase
-    .from('staff')
-    .select('date_of_birth')
-    .eq('staff_id', staffId)
-    .single()
-
-  if (error || !staff) {
-    return { error: 'Verification failed. Please contact support.' }
-  }
-
-  // Compare dates (handle possible format differences)
-  if (staff.date_of_birth !== dob) {
-    return { error: 'Verification failed: Date of Birth does not match our records.' }
-  }
-
-  // Set a verification cookie
-  cookieStore.set('staff_verified', 'true', {
-    httpOnly: true,
-    secure: process.env.NODE_ENV === 'production',
-    maxAge: 60 * 60 * 2 // 2 hours
-  })
-
+  // After staff ID login, redirect straight to vote page
   redirect('/vote')
 }
 
