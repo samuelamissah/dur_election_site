@@ -46,7 +46,7 @@ export default function VerificationPage() {
                   Verification Required
                 </h1>
                 <p className="text-zinc-500 dark:text-zinc-400 font-medium">
-                  Please verify your identity by entering your Date of Birth to proceed with voting.
+                  Please verify your identity by entering your Date of Birth to proceed  voting.
                 </p>
               </div>
 
