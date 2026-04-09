@@ -16,19 +16,20 @@ export async function uploadStaffCsv(formData: FormData) {
   const text = await file.text()
   const rows = text.split('\n').map(row => row.trim()).filter(Boolean)
   
-  // Assume CSV header: staff_id, full_name, email, phone (optional)
+  // Assume CSV header: staff_id, full_name, email, date_of_birth, phone (optional)
   // Skip header if present (simple check)
   const startIndex = rows[0].toLowerCase().includes('staff_id') ? 1 : 0
   
   const staffData = []
   
   for (let i = startIndex; i < rows.length; i++) {
-    const [staffId, fullName, email, phone] = rows[i].split(',').map(s => s.trim())
-    if (staffId && email) {
+    const [staffId, fullName, email, dob, phone] = rows[i].split(',').map(s => s.trim())
+    if (staffId && email && dob) {
       staffData.push({
         staff_id: staffId,
         full_name: fullName || null,
         email: email,
+        date_of_birth: dob, // Expected format YYYY-MM-DD
         phone: phone || null,
         has_voted: false
       })

@@ -74,7 +74,11 @@ export default function ReviewPage() {
       const result = await submitVote(selections);
       if (result.success) {
         localStorage.removeItem('election_selections');
-        router.push(`/success?refId=${result.refId || ''}`);
+        const urlParams = new URLSearchParams({
+          refId: result.refId || '',
+          name: result.staffName || ''
+        });
+        router.push(`/success?${urlParams.toString()}`);
       } else {
         setError(result.error || 'Failed to submit vote');
         setIsSubmitting(false);

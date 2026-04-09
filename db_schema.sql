@@ -8,6 +8,7 @@ create table if not exists staff (
   staff_id text unique not null,
   full_name text,
   email text not null,
+  date_of_birth date,
   has_voted boolean default false,
   created_at timestamp with time zone default timezone('utc'::text, now()) not null
 );

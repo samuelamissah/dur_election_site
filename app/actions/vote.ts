@@ -10,9 +10,10 @@ import { sendThankYouEmail } from './admin'
 export async function submitVote(selections: Record<string, string>) {
   const cookieStore = await cookies()
   const staffId = cookieStore.get('staff_session')?.value
+  const isVerified = cookieStore.get('staff_verified')?.value === 'true'
 
-  if (!staffId) {
-    return { error: 'Unauthorized: No active session' }
+  if (!staffId || !isVerified) {
+    return { error: 'Unauthorized: No verified session' }
   }
 
   // Transform selections object into array, filtering out "NO_VOTE" selections
@@ -103,5 +104,16 @@ export async function submitVote(selections: Record<string, string>) {
 
   // Success!
   await sendThankYouEmail(staffId)
-  return { success: true, refId }
+
+  // Fetch staff name to return it to the success page
+  const supabaseSR = createServiceClient()
+  const { data: staff } = await supabaseSR
+    .from('staff')
+    .select('full_name')
+    .eq('staff_id', staffId)
+    .single()
+
+  const staffName = staff?.full_name || staffId;
+
+  return { success: true, refId, staffName }
 }

@@ -640,7 +640,7 @@ function StaffManagement() {
   };
   
   const downloadTemplate = () => {
-    const csvContent = "data:text/csv;charset=utf-8,staff_id,full_name,email,phone\nSTF001,John Doe,user1@example.com,233555123456\nSTF002,Jane Smith,user2@example.com,233555654321";
+    const csvContent = "data:text/csv;charset=utf-8,staff_id,full_name,email,date_of_birth,phone\nSTF001,John Doe,user1@example.com,1990-01-15,233555123456\nSTF002,Jane Smith,user2@example.com,1985-05-20,233555654321";
     const encodedUri = encodeURI(csvContent);
     const link = document.createElement("a");
     link.setAttribute("href", encodedUri);
@@ -833,6 +833,7 @@ function StaffManagement() {
                 <th className="pb-3 font-medium text-zinc-500 dark:text-zinc-400">Staff ID</th>
                 <th className="pb-3 font-medium text-zinc-500 dark:text-zinc-400">Full Name</th>
                 <th className="pb-3 font-medium text-zinc-500 dark:text-zinc-400">Email</th>
+                <th className="pb-3 font-medium text-zinc-500 dark:text-zinc-400">DOB</th>
                 <th className="pb-3 font-medium text-zinc-500 dark:text-zinc-400">Phone</th>
                 <th className="pb-3 font-medium text-zinc-500 dark:text-zinc-400">Status</th>
                 <th className="pb-3 font-medium text-zinc-500 dark:text-zinc-400">Notified</th>
@@ -856,6 +857,7 @@ function StaffManagement() {
                     <td className="py-3 font-mono text-zinc-900 dark:text-zinc-200">{staff.staff_id}</td>
                     <td className="py-3 text-zinc-900 dark:text-zinc-200 font-medium">{staff.full_name || '-'}</td>
                     <td className="py-3 text-zinc-600 dark:text-zinc-400">{staff.email}</td>
+                    <td className="py-3 font-mono text-xs text-zinc-500 dark:text-zinc-400">{staff.date_of_birth || '-'}</td>
                     <td className="py-3 text-zinc-600 dark:text-zinc-400">{staff.phone || '-'}</td>
                     <td className="py-3">
                       {staff.has_voted ? (
