@@ -282,7 +282,7 @@ function ResultsView() {
         ['Total Registered Staff', stats.totalStaff.toString()],
         ['Total Votes Cast', stats.votesCast.toString()],
         ['Turnout Percentage', stats.turnout],
-        ['Status', isElectionActive ? 'IN PROGRESS' : 'COMPLETED']
+        ['Status', isElectionClosed() ? 'COMPLETED (FINAL RESULTS)' : 'IN PROGRESS']
       ];
       
       autoTable(pdf, {
