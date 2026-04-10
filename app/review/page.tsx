@@ -8,6 +8,7 @@ import { CheckCircle2, AlertCircle, ShieldCheck, ArrowLeft, Loader2, Send, LogOu
 import { submitVote } from '../actions/vote';
 import { createClient } from '../utils/supabase/client';
 import { logoutStaff } from '../actions/auth';
+import { isElectionClosed, ELECTION_END_DATE_STRING } from '../utils/election';
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
@@ -19,6 +20,8 @@ export default function ReviewPage() {
   const [candidatesById, setCandidatesById] = useState<Record<string, { name: string }>>({});
   const [loading, setLoading] = useState(true);
   const router = useRouter();
+
+  const closed = isElectionClosed();
 
   useEffect(() => {
     const saved = localStorage.getItem('election_selections');
@@ -91,6 +94,29 @@ export default function ReviewPage() {
   };
 
   const isComplete = positions.length > 0 && positions.every(p => selections[p.id]);
+
+  if (closed) {
+    return (
+      <div className="min-h-screen bg-zinc-50 dark:bg-zinc-950 font-sans antialiased flex flex-col items-center justify-center p-6">
+        <ElectionBanner />
+        <div className="flex-1 flex flex-col items-center justify-center w-full max-w-lg text-center space-y-6">
+          <div className="w-20 h-20 bg-red-100 dark:bg-red-900/30 rounded-full flex items-center justify-center text-red-600 dark:text-red-400">
+            <AlertCircle className="w-10 h-10" />
+          </div>
+          <h1 className="text-3xl font-extrabold text-zinc-900 dark:text-zinc-50 tracking-tight">
+            Election Closed
+          </h1>
+          <p className="text-zinc-500 dark:text-zinc-400 leading-relaxed">
+            The welfare election officially concluded on <strong>{ELECTION_END_DATE_STRING}</strong>. 
+            Voting is no longer permitted. Thank you to everyone who participated.
+          </p>
+          <button onClick={() => router.push('/')} className="px-6 py-3 bg-zinc-900 dark:bg-zinc-100 text-white dark:text-zinc-900 font-bold rounded-xl hover:bg-zinc-800 dark:hover:bg-zinc-200 transition-colors">
+            Return Home
+          </button>
+        </div>
+      </div>
+    );
+  }
 
   if (loading) {
     return (

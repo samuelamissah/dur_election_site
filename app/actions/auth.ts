@@ -6,8 +6,13 @@ import { createServiceClient } from '../utils/supabase/serviceRole'
 import { redirect } from 'next/navigation'
 import { cookies } from 'next/headers'
 import { revalidatePath } from 'next/cache'
+import { isElectionClosed, ELECTION_END_DATE_STRING } from '../utils/election'
 
 export async function loginWithStaffId(formData: FormData) {
+  if (isElectionClosed()) {
+    return { error: `The election has officially closed as of ${ELECTION_END_DATE_STRING}. Voting is no longer permitted.` }
+  }
+
   const staffId = formData.get('staffId') as string
   
   if (!staffId) {

@@ -10,6 +10,8 @@ import { useToast } from '../components/Toast';
 import jsPDF from 'jspdf';
 import { toPng } from 'html-to-image';
 
+import { isElectionClosed, ELECTION_END_DATE_STRING } from '../utils/election';
+
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
 export default function AdminPage() {
@@ -1213,13 +1215,23 @@ function ElectionControl() {
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
         <div className="bg-white dark:bg-zinc-800 rounded-lg shadow p-6">
           <h3 className="text-lg font-semibold mb-4 text-zinc-900 dark:text-zinc-100">Election Status</h3>
-          <div className="flex items-center justify-between p-4 bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-lg mb-6">
-            <div className="flex items-center">
-              <div className="w-3 h-3 bg-green-500 rounded-full mr-3 animate-pulse"></div>
-              <span className="font-medium text-green-800 dark:text-green-300">Active</span>
+          {isElectionClosed() ? (
+            <div className="flex items-center justify-between p-4 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg mb-6">
+              <div className="flex items-center">
+                <div className="w-3 h-3 bg-red-500 rounded-full mr-3"></div>
+                <span className="font-medium text-red-800 dark:text-red-300">Closed</span>
+              </div>
+              <span className="text-sm text-red-700 dark:text-red-400">Ended on {ELECTION_END_DATE_STRING}</span>
             </div>
-            <span className="text-sm text-green-700 dark:text-green-400">Ends in 4 days</span>
-          </div>
+          ) : (
+            <div className="flex items-center justify-between p-4 bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-lg mb-6">
+              <div className="flex items-center">
+                <div className="w-3 h-3 bg-green-500 rounded-full mr-3 animate-pulse"></div>
+                <span className="font-medium text-green-800 dark:text-green-300">Active</span>
+              </div>
+              <span className="text-sm text-green-700 dark:text-green-400">Ends on {ELECTION_END_DATE_STRING}</span>
+            </div>
+          )}
           
           <div className="space-y-4">
             <button className="w-full py-3 px-4 border border-red-200 dark:border-red-800 text-red-600 dark:text-red-400 rounded-lg hover:bg-red-50 dark:hover:bg-red-900/20 font-medium transition-colors">

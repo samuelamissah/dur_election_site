@@ -1,9 +1,12 @@
 
 import ElectionBanner from './components/ElectionBanner';
 import LoginForm from './components/LoginForm';
-import Link from 'next/link';
+import { isElectionClosed, ELECTION_END_DATE_STRING } from './utils/election';
+import { AlertTriangle } from 'lucide-react';
 
 export default function Home() {
+  const closed = isElectionClosed();
+
   return (
     <div className="min-h-full bg-zinc-50 dark:bg-zinc-950 flex flex-col items-center justify-center font-sans antialiased">
       <ElectionBanner />
@@ -20,7 +23,19 @@ export default function Home() {
         </div>
 
         <div className="w-full max-w-md bg-white dark:bg-zinc-900 rounded-2xl shadow-xl shadow-zinc-200/50 dark:shadow-none border border-zinc-200 dark:border-zinc-800 p-6 sm:p-8">
-          <LoginForm />
+          {closed ? (
+            <div className="text-center py-6">
+              <div className="w-16 h-16 bg-red-50 dark:bg-red-900/20 rounded-full flex items-center justify-center mx-auto mb-4">
+                <AlertTriangle className="w-8 h-8 text-red-600 dark:text-red-400" />
+              </div>
+              <h2 className="text-2xl font-bold mb-2 text-zinc-900 dark:text-zinc-100">Voting Closed</h2>
+              <p className="text-sm text-zinc-500 dark:text-zinc-400 mb-6">
+                The welfare election concluded on {ELECTION_END_DATE_STRING}. Voting is no longer permitted.
+              </p>
+            </div>
+          ) : (
+            <LoginForm />
+          )}
         </div>
 
         <div className="mt-12 grid grid-cols-1 sm:grid-cols-3 gap-4 sm:gap-6 w-full max-w-4xl text-center">
