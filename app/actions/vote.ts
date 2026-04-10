@@ -52,12 +52,12 @@ export async function submitVote(selections: Record<string, string>) {
   })
 
   if (rpcError) {
-    console.error('Vote submission error:', rpcError)
     // If RPC missing, perform safe fallback
     if (
-      rpcError.message.includes('Could not find the function') ||
+      rpcError.message?.includes('Could not find the function') ||
       rpcError.code === 'PGRST202'
     ) {
+      console.warn('RPC submit_ballot missing (PGRST202). Using fallback vote submission flow...');
       // Fallback flow:
       const supabaseSR = createServiceClient()
       const { data: updated, error: updateErr } = await supabaseSR

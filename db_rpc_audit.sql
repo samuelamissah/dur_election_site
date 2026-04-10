@@ -64,3 +64,9 @@ begin
 
 end;
 $$;
+
+-- Grant permissions to Supabase roles
+grant execute on function submit_ballot(text, jsonb) to anon, authenticated;
+
+-- Reload schema cache for PostgREST
+notify pgrst, reload_schema;
