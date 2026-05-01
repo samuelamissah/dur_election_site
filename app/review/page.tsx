@@ -253,8 +253,8 @@ export default function ReviewPage() {
 
       <footer className="w-full py-10 text-center text-sm text-zinc-500 dark:text-zinc-400 border-t border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-950 mt-auto">
         <div className="max-w-4xl mx-auto px-6">
-          <p className="font-medium text-zinc-900 dark:text-zinc-100 mb-2">Department of Urban Roads</p>
-          <p>&copy; 2026 Election Committee. All rights reserved.</p>
+          <p className="font-medium text-zinc-900 dark:text-zinc-100 mb-2">National Engineering Coordinating Team</p>
+          <p>&copy; 2026 National Engineering Coordinating Team. All rights reserved.</p>
         </div>
       </footer>
     </div>

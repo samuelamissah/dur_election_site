@@ -3,6 +3,8 @@ import Link from 'next/link';
 import { Landmark, ShieldCheck, User, LogOut } from 'lucide-react';
 import { logoutStaff } from '../actions/auth';
 
+/* eslint-disable @typescript-eslint/no-explicit-any */
+
 export default function Navbar({ staff }: { staff?: any }) {
   return (
     <nav className="w-full bg-white/90 dark:bg-zinc-950/90 border-b border-zinc-200 dark:border-zinc-800 py-3 px-4 sm:px-12 flex items-center justify-between sticky top-0 z-50 backdrop-blur-md">
@@ -13,10 +15,10 @@ export default function Navbar({ staff }: { staff?: any }) {
           </div>
           <div className="flex flex-col">
             <span className="text-sm sm:text-base font-bold text-zinc-900 dark:text-zinc-50 leading-tight tracking-tight">
-              <span className="hidden xs:inline">Department of </span>Urban Roads
+              <span className="hidden xs:inline">National Engineering </span>Coordinating Team
             </span>
             <span className="text-[8px] sm:text-[10px] text-blue-600 dark:text-blue-400 font-bold uppercase tracking-[0.1em] sm:tracking-[0.2em]">
-              Welfare Election 2026
+              Election 2026
             </span>
           </div>
         </Link>

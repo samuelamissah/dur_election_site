@@ -48,7 +48,7 @@ export async function submitVote(selections: Record<string, string>) {
   }
 
   // Success!
-  const refId = 'DUR-' + Math.random().toString(36).substring(2, 9).toUpperCase()
+  const refId = 'NECT-' + Math.random().toString(36).substring(2, 9).toUpperCase()
 
   // Try RPC first (best: true transaction)
   const { error: rpcError } = await supabase.rpc('submit_ballot', {

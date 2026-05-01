@@ -171,6 +171,20 @@ export default function AdminPage() {
   );
 }
 
+const getBase64ImageFromURL = async (url: string) => {
+  const response = await fetch(url);
+  const blob = await response.blob();
+
+  return new Promise<string>((resolve, reject) => {
+    const reader = new FileReader();
+
+    reader.onloadend = () => resolve(reader.result as string);
+    reader.onerror = reject;
+
+    reader.readAsDataURL(blob);
+  });
+};
+
 function ResultsView() {
   const [stats, setStats] = useState({
     totalStaff: 0,
@@ -232,141 +246,238 @@ function ResultsView() {
     queueMicrotask(() => setHydrated(true));
   }, []);
 
-  const handleExportPDF = async () => {
-    setIsExporting(true);
-    try {
-      const { jsPDF } = await import('jspdf');
-      const { default: autoTable } = await import('jspdf-autotable');
-      const pdf = new jsPDF();
-      
-      // Header Background
-      pdf.setFillColor(37, 99, 235); // Blue-600
-      pdf.rect(0, 0, 210, 50, 'F');
-      
-      // Add Logo Image (DUR-1.jpg from public folder)
-      try {
-        pdf.addImage('/DUR-1.jpg', 'JPEG', 12, 10, 25, 25);
-      } catch (imgError) {
-        console.warn('Could not load logo image for PDF:', imgError);
-        // Fallback to simple building icon if image fails
-        pdf.setFillColor(255, 255, 255);
-        pdf.roundedRect(15, 12, 15, 15, 3, 3, 'F');
-        pdf.setFillColor(37, 99, 235);
-        pdf.rect(18, 21, 9, 2, 'F');
-        pdf.rect(19, 18, 1.5, 3, 'F');
-        pdf.rect(22, 18, 1.5, 3, 'F');
-        pdf.rect(25, 18, 1.5, 3, 'F');
-        pdf.triangle(18, 18, 27, 18, 22.5, 14, 'F');
-      }
+ const handleExportPDF = async () => {
+  setIsExporting(true);
 
-      // Header Text
-      pdf.setTextColor(255, 255, 255);
-      pdf.setFontSize(22);
-      pdf.setFont('helvetica', 'bold');
-      pdf.text('DEPARTMENT OF URBAN ROADS', 42, 22);
-      
-      pdf.setFontSize(14);
-      pdf.setFont('helvetica', 'normal');
-      pdf.text('OFFICIAL WELFARE ELECTION 2026', 42, 32);
-      
-      pdf.setFontSize(10);
-      pdf.text(`REPORT GENERATED: ${new Date().toLocaleString()}`, 42, 40);
-      
-      // Summary Box
-      pdf.setTextColor(0, 0, 0);
-      pdf.setFontSize(16);
-      pdf.setFont('helvetica', 'bold');
-      pdf.text('ELECTION SUMMARY', 14, 65);
-      
-      const summaryData = [
+  try {
+    const { jsPDF } = await import('jspdf');
+    const { default: autoTable } = await import('jspdf-autotable');
+
+    const pdf = new jsPDF({
+      orientation: 'portrait',
+      unit: 'mm',
+      format: 'a4',
+    });
+
+    const pageWidth = pdf.internal.pageSize.getWidth();
+    const pageHeight = pdf.internal.pageSize.getHeight();
+
+    let logoBase64 = '';
+
+    try {
+      logoBase64 = await getBase64ImageFromURL('/NECT.jpeg');
+    } catch (error) {
+      console.warn('Logo could not be loaded:', error);
+    }
+
+    // Comfortable header
+pdf.setFillColor(15, 23, 42);
+pdf.rect(0, 0, pageWidth, 55, 'F');
+
+// Logo container
+pdf.setFillColor(255, 255, 255);
+pdf.roundedRect(14, 10, 34, 34, 4, 4, 'F');
+
+// Logo without squeezing
+if (logoBase64) {
+  const logoProps = pdf.getImageProperties(logoBase64);
+
+  const boxX = 17;
+  const boxY = 13;
+  const boxW = 28;
+  const boxH = 28;
+
+  const ratio = Math.min(
+    boxW / logoProps.width,
+    boxH / logoProps.height
+  );
+
+  const logoW = logoProps.width * ratio;
+  const logoH = logoProps.height * ratio;
+
+  const logoX = boxX + (boxW - logoW) / 2;
+  const logoY = boxY + (boxH - logoH) / 2;
+
+  pdf.addImage(
+    logoBase64,
+    'JPEG',
+    logoX,
+    logoY,
+    logoW,
+    logoH
+  );
+}
+
+// Header text with breathing room
+pdf.setTextColor(255, 255, 255);
+
+pdf.setFont('helvetica', 'bold');
+pdf.setFontSize(16);
+
+pdf.text('NATIONAL ENGINEERING', 55, 18);
+pdf.text('COORDINATING TEAM', 55, 27);
+
+pdf.setFont('helvetica', 'normal');
+pdf.setFontSize(10);
+
+pdf.text('OFFICIAL ELECTION 2026', 55, 36);
+
+pdf.setFontSize(8);
+pdf.text(
+  `Generated: ${new Date().toLocaleString()}`,
+  pageWidth - 14,
+  18,
+  { align: 'right' }
+);
+
+    pdf.setFont('helvetica', 'normal');
+    pdf.setFontSize(10);
+
+   
+    pdf.setTextColor(15, 23, 42);
+    pdf.setFont('helvetica', 'bold');
+    pdf.setFontSize(16);
+    pdf.text('Election Summary', 14, 60);
+
+    autoTable(pdf, {
+      startY: 66,
+      head: [['Metric', 'Value']],
+      body: [
         ['Total Registered Staff', stats.totalStaff.toString()],
         ['Total Votes Cast', stats.votesCast.toString()],
         ['Turnout Percentage', stats.turnout],
-        ['Status', isElectionClosed() ? 'COMPLETED (FINAL RESULTS)' : 'IN PROGRESS']
-      ];
-      
-      autoTable(pdf, {
-        startY: 70,
-        head: [['Metric', 'Value']],
-        body: summaryData,
-        theme: 'striped',
-        headStyles: { fillColor: [37, 99, 235], fontSize: 11 },
-        bodyStyles: { fontSize: 10, cellPadding: 5 }
-      });
+        [
+          'Status',
+          isElectionClosed()
+            ? 'COMPLETED - FINAL RESULTS'
+            : 'IN PROGRESS',
+        ],
+      ],
+      theme: 'grid',
+      margin: { left: 14, right: 14 },
+      styles: {
+        fontSize: 10,
+        cellPadding: 4,
+        textColor: [31, 41, 55],
+      },
+      headStyles: {
+        fillColor: [37, 99, 235],
+        textColor: [255, 255, 255],
+      },
+    });
 
-      // Turnout Bar Chart Visualization
-      let currentY = (pdf as any).lastAutoTable.finalY + 15;
-      pdf.setFontSize(14);
-      pdf.setFont('helvetica', 'bold');
-      pdf.text('VOTER TURNOUT VISUALIZATION', 14, currentY);
-      currentY += 10;
+    let currentY = (pdf as any).lastAutoTable.finalY + 14;
 
-      const turnoutVal = (stats.votesCast / (stats.totalStaff || 1)) * 100;
-      pdf.setFillColor(243, 244, 246);
-      pdf.rect(14, currentY, 120, 8, 'F');
-      pdf.setFillColor(37, 99, 235);
-      pdf.rect(14, currentY, (turnoutVal / 100) * 120, 8, 'F');
-      pdf.setFontSize(10);
-      pdf.setTextColor(0, 0, 0);
-      pdf.text(`${Math.round(turnoutVal)}% Turnout`, 140, currentY + 6);
-      currentY += 25;
-
-      // Results for each position
-      filteredResults.forEach((pos) => {
-        if (currentY > 230) {
-          pdf.addPage();
-          currentY = 20;
-        }
-
-        pdf.setFillColor(243, 244, 246);
-        pdf.rect(14, currentY, 182, 10, 'F');
-        pdf.setTextColor(31, 41, 55);
-        pdf.setFontSize(12);
-        pdf.setFont('helvetica', 'bold');
-        pdf.text(pos.title.toUpperCase(), 16, currentY + 7);
-        currentY += 15;
-
-        const isUnopposed = pos.candidates.length === 1;
-        const totalPosVotes = isUnopposed ? stats.votesCast : pos.candidates.reduce((sum: number, c: any) => sum + (c.voteCount || 0), 0);
-        
-        const tableBody = pos.candidates
-          .sort((a: any, b: any) => (b.voteCount || 0) - (a.voteCount || 0))
-          .map((c: any, idx: number) => {
-            const pct = totalPosVotes > 0 ? Math.round((c.voteCount / totalPosVotes) * 100) : 0;
-            return [idx + 1, c.name, c.voteCount.toString(), `${pct}%`];
-          });
-
-        autoTable(pdf, {
-          startY: currentY,
-          head: [['Rank', 'Candidate', 'Votes', 'Percentage']],
-          body: tableBody,
-          theme: 'grid',
-          headStyles: { fillColor: [71, 85, 105], fontSize: 10 },
-          bodyStyles: { fontSize: 9 },
-          margin: { left: 14 }
-        });
-
-        currentY = (pdf as any).lastAutoTable.finalY + 15;
-      });
-
-      // Footer
-      const pageCount = (pdf as any).internal.getNumberOfPages();
-      for (let i = 1; i <= pageCount; i++) {
-        pdf.setPage(i);
-        pdf.setFontSize(8);
-        pdf.setTextColor(156, 163, 175);
-        pdf.text('This is an official computer-generated report for the DUR Welfare Election 2026.', 105, 285, { align: 'center' });
-        pdf.text(`Page ${i} of ${pageCount}`, 105, 290, { align: 'center' });
+    filteredResults.forEach((position) => {
+      if (currentY > 235) {
+        pdf.addPage();
+        currentY = 20;
       }
 
-      pdf.save(`DUR-Election-Results-${new Date().toISOString().split('T')[0]}.pdf`);
-    } catch (error) {
-      console.error('Export error:', error);
-      alert('Failed to export results. Please try again.');
-    } finally {
-      setIsExporting(false);
+      pdf.setFillColor(241, 245, 249);
+      pdf.roundedRect(14, currentY, 182, 11, 2, 2, 'F');
+
+      pdf.setFont('helvetica', 'bold');
+      pdf.setFontSize(11);
+      pdf.setTextColor(15, 23, 42);
+
+      pdf.text(
+        String(position.title || 'POSITION').toUpperCase().slice(0, 70),
+        18,
+        currentY + 7.2
+      );
+
+      currentY += 17;
+
+      const isUnopposed = position.candidates.length === 1;
+
+      const totalVotes = isUnopposed
+        ? stats.votesCast
+        : position.candidates.reduce(
+            (sum: number, c: any) => sum + (c.voteCount || 0),
+            0
+          );
+
+      const tableBody = position.candidates
+        .sort(
+          (a: any, b: any) =>
+            (b.voteCount || 0) - (a.voteCount || 0)
+        )
+        .map((candidate: any, index: number) => {
+          const percentage =
+            totalVotes > 0
+              ? Math.round(
+                  ((candidate.voteCount || 0) / totalVotes) * 100
+                )
+              : 0;
+
+          return [
+            index + 1,
+            candidate.name || '-',
+            candidate.voteCount || 0,
+            `${percentage}%`,
+          ];
+        });
+
+      autoTable(pdf, {
+        startY: currentY,
+        head: [['Rank', 'Candidate', 'Votes', 'Percentage']],
+        body: tableBody,
+        theme: 'striped',
+        margin: { left: 14, right: 14 },
+        styles: {
+          fontSize: 9,
+          cellPadding: 3.5,
+          overflow: 'linebreak',
+          valign: 'middle',
+        },
+        columnStyles: {
+          0: { cellWidth: 18, halign: 'center' },
+          1: { cellWidth: 100 },
+          2: { cellWidth: 28, halign: 'center' },
+          3: { cellWidth: 34, halign: 'center' },
+        },
+        headStyles: {
+          fillColor: [30, 41, 59],
+          textColor: [255, 255, 255],
+        },
+      });
+
+      currentY = (pdf as any).lastAutoTable.finalY + 14;
+    });
+
+    const pageCount = (pdf as any).internal.getNumberOfPages();
+
+    for (let i = 1; i <= pageCount; i++) {
+      pdf.setPage(i);
+
+      pdf.setDrawColor(226, 232, 240);
+      pdf.line(14, pageHeight - 14, pageWidth - 14, pageHeight - 14);
+
+      pdf.setFontSize(8);
+      pdf.setTextColor(100, 116, 139);
+
+      pdf.text(
+        'This is an official computer-generated NECT Election 2026 report.',
+        14,
+        pageHeight - 8
+      );
+
+      pdf.text(`Page ${i} of ${pageCount}`, pageWidth - 14, pageHeight - 8, {
+        align: 'right',
+      });
     }
-  };
+
+    pdf.save(
+      `NECT-Election-Results-${new Date().toISOString().split('T')[0]}.pdf`
+    );
+  } catch (error) {
+    console.error('Export error:', error);
+    alert('Failed to export results. Please try again.');
+  } finally {
+    setIsExporting(false);
+  }
+};
 
   const filteredResults = detailedResults.filter(pos => 
     pos.title?.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -642,7 +753,7 @@ function StaffManagement() {
   };
   
   const downloadTemplate = () => {
-    const csvContent = "data:text/csv;charset=utf-8,staff_id,full_name,email,date_of_birth,phone\nSTF001,John Doe,user1@example.com,1990-01-15,233555123456\nSTF002,Jane Smith,user2@example.com,1985-05-20,233555654321";
+    const csvContent = "data:text/csv;charset=utf-8,staff_id,full_name,email\nSTF001,John Doe,user1@example.com\nSTF002,Jane Smith,user2@example.com";
     const encodedUri = encodeURI(csvContent);
     const link = document.createElement("a");
     link.setAttribute("href", encodedUri);
@@ -727,7 +838,7 @@ function StaffManagement() {
           </button>
         </div>
         <p className="text-sm text-zinc-500 dark:text-zinc-400 mb-4">
-          Upload a CSV file containing columns: <code className="bg-zinc-100 dark:bg-zinc-700 px-1 py-0.5 rounded">staff_id</code>, <code className="bg-zinc-100 dark:bg-zinc-700 px-1 py-0.5 rounded">full_name</code>, <code className="bg-zinc-100 dark:bg-zinc-700 px-1 py-0.5 rounded">email</code>, <code className="bg-zinc-100 dark:bg-zinc-700 px-1 py-0.5 rounded">phone</code> (optional).
+          Upload a CSV file containing columns: <code className="bg-zinc-100 dark:bg-zinc-700 px-1 py-0.5 rounded">staff_id</code>, <code className="bg-zinc-100 dark:bg-zinc-700 px-1 py-0.5 rounded">full_name</code>, <code className="bg-zinc-100 dark:bg-zinc-700 px-1 py-0.5 rounded">email</code>.
         </p>
         
         {uploadStatus && (
@@ -835,8 +946,6 @@ function StaffManagement() {
                 <th className="pb-3 font-medium text-zinc-500 dark:text-zinc-400">Staff ID</th>
                 <th className="pb-3 font-medium text-zinc-500 dark:text-zinc-400">Full Name</th>
                 <th className="pb-3 font-medium text-zinc-500 dark:text-zinc-400">Email</th>
-                <th className="pb-3 font-medium text-zinc-500 dark:text-zinc-400">DOB</th>
-                <th className="pb-3 font-medium text-zinc-500 dark:text-zinc-400">Phone</th>
                 <th className="pb-3 font-medium text-zinc-500 dark:text-zinc-400">Status</th>
                 <th className="pb-3 font-medium text-zinc-500 dark:text-zinc-400">Notified</th>
                 <th className="pb-3 font-medium text-zinc-500 dark:text-zinc-400 text-right">Actions</th>
@@ -859,8 +968,6 @@ function StaffManagement() {
                     <td className="py-3 font-mono text-zinc-900 dark:text-zinc-200">{staff.staff_id}</td>
                     <td className="py-3 text-zinc-900 dark:text-zinc-200 font-medium">{staff.full_name || '-'}</td>
                     <td className="py-3 text-zinc-600 dark:text-zinc-400">{staff.email}</td>
-                    <td className="py-3 font-mono text-xs text-zinc-500 dark:text-zinc-400">{staff.date_of_birth || '-'}</td>
-                    <td className="py-3 text-zinc-600 dark:text-zinc-400">{staff.phone || '-'}</td>
                     <td className="py-3">
                       {staff.has_voted ? (
                         <span className="px-2 py-1 rounded-full text-xs font-medium bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400">Voted</span>
@@ -873,11 +980,6 @@ function StaffManagement() {
                         <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold uppercase w-fit ${staff.email_sent ? 'bg-green-100 text-green-800' : 'bg-zinc-100 text-zinc-500'}`}>
                           Email: {staff.email_sent ? 'Yes' : 'No'}
                         </span>
-                        {staff.phone && (
-                          <span className="px-2 py-0.5 rounded-full text-[10px] font-bold uppercase w-fit bg-blue-50 text-blue-700">
-                            SMS ready
-                          </span>
-                        )}
                       </div>
                     </td>
                     <td className="py-3 text-right">

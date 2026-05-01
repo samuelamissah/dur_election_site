@@ -14,11 +14,11 @@ export default function Home() {
       <main className="flex-1 flex flex-col items-center justify-center p-6 sm:p-20 relative w-full max-w-5xl">
         <div className="mb-10 sm:mb-12 text-center">
           <h1 className="text-3xl sm:text-6xl font-extrabold text-zinc-900 dark:text-zinc-50 mb-4 sm:mb-6 tracking-tight">
-            Department of <span className="text-blue-600">Urban Roads</span>
+            National Engineering <span className="text-blue-600">Coordinating Team</span>
           </h1>
           <p className="text-base sm:text-xl text-zinc-500 dark:text-zinc-400 max-w-2xl mx-auto leading-relaxed">
-            Welcome to the official 2026 Welfare Election Portal. 
-            Please use your designated Staff ID to securely access your voting ballot.
+            Welcome to the official 2026 Election Portal. 
+            Please use your designated Email Address to securely access your voting ballot.
           </p>
         </div>
 
@@ -49,15 +49,15 @@ export default function Home() {
           </div>
           <div className="p-4 bg-white/50 dark:bg-zinc-900/50 rounded-xl border border-zinc-100 dark:border-zinc-800 sm:border-none sm:bg-transparent">
             <h3 className="font-bold text-zinc-900 dark:text-zinc-100 text-sm sm:text-base">Support Available</h3>
-            <p className="text-xs sm:text-sm text-zinc-500 mt-1">Contact your HR department for any issues.</p>
+            <p className="text-xs sm:text-sm text-zinc-500 mt-1">Contact your HR  for any issues.</p>
           </div>
         </div>
       </main>
 
       <footer className="w-full py-10 text-center text-sm text-zinc-500 dark:text-zinc-400 border-t border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-950">
         <div className="max-w-5xl mx-auto px-6">
-          <p className="font-medium text-zinc-900 dark:text-zinc-100 mb-2">Department of Urban Roads</p>
-          <p>&copy; 2026 Election Committee. All rights reserved. Managed by IT Division.</p>
+          <p className="font-medium text-zinc-900 dark:text-zinc-100 mb-2">National Engineering Coordinating Team</p>
+          <p>&copy; 2026 National Engineering Coordinating Team. All rights reserved. Managed by IT Division.</p>
         </div>
       </footer>
     </div>

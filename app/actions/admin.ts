@@ -16,21 +16,19 @@ export async function uploadStaffCsv(formData: FormData) {
   const text = await file.text()
   const rows = text.split('\n').map(row => row.trim()).filter(Boolean)
   
-  // Assume CSV header: staff_id, full_name, email, date_of_birth, phone (optional)
+  // Assume CSV header: staff_id, full_name, email
   // Skip header if present (simple check)
   const startIndex = rows[0].toLowerCase().includes('staff_id') ? 1 : 0
   
   const staffData = []
   
   for (let i = startIndex; i < rows.length; i++) {
-    const [staffId, fullName, email, dob, phone] = rows[i].split(',').map(s => s.trim())
-    if (staffId && email && dob) {
+    const [staffId, fullName, email] = rows[i].split(',').map(s => s.trim())
+    if (staffId && email) {
       staffData.push({
         staff_id: staffId,
         full_name: fullName || null,
         email: email,
-        date_of_birth: dob, // Expected format YYYY-MM-DD
-        phone: phone || null,
         has_voted: false
       })
     }
@@ -62,12 +60,6 @@ export async function uploadStaffCsv(formData: FormData) {
   const results = await Promise.allSettled(
     uniqueStaffData.map(async (s) => {
       const emailRes = await sendConfirmationEmail(s.staff_id);
-      
-      // Placeholder for SMS (requires paid API)
-      if (s.phone) {
-        await sendSmsNotification(s.staff_id, s.phone);
-      }
-      
       return emailRes;
     })
   )
@@ -168,40 +160,19 @@ export async function getCandidatesList() {
 }
 
 export async function sendSmsNotification(staffId: string, phone: string) {
-  // IMPORTANT: For production, you would use an API like Hubtel, Arkesel, or Twilio.
-  // These are paid services that require an API Key.
-  // Below is a code structure for how it would work:
-  
-  console.log(`[SMS PROXY] Sending notification to ${phone} for Staff ID: ${staffId}`);
-  
-  /* 
-  Example Hubtel Integration:
-  const response = await fetch('https://smsc.hubtel.com/v1/messages/send', {
-    method: 'POST',
-    headers: {
-      'Authorization': 'Basic ' + btoa(process.env.HUBTEL_CLIENT_ID + ':' + process.env.HUBTEL_CLIENT_SECRET),
-      'Content-Type': 'application/json'
-    },
-    body: JSON.stringify({
-      from: 'DUR-VOTE',
-      to: phone,
-      content: `Hello! You have been added to the 2026 Welfare Election portal. Staff ID: ${staffId}. Vote here: ${process.env.NEXT_PUBLIC_SITE_URL}`
-    })
-  });
-  */
-  
+  // SMS Notification function removed as phone is no longer used
   return { success: true };
 }
 
 import nodemailer from 'nodemailer';
 
 export async function sendConfirmationEmail(staffId: string) {
-  const supabase = await createClient()
+  const supabase = createServiceClient()
   
-  // Fetch staff email
+  // Fetch staff email and name
   const { data: staff, error } = await supabase
     .from('staff')
-    .select('email')
+    .select('email, full_name')
     .eq('staff_id', staffId)
     .single()
 
@@ -209,6 +180,8 @@ export async function sendConfirmationEmail(staffId: string) {
     console.error('Failed to find staff email:', error)
     return { error: 'Staff email not found' }
   }
+
+  const staffName = staff.full_name || 'Staff Member';
 
   const transporter = nodemailer.createTransport({
     host: 'smtp.gmail.com',
@@ -221,21 +194,20 @@ export async function sendConfirmationEmail(staffId: string) {
   });
 
   const mailOptions = {
-    from: `"DUR Election Committee" <${process.env.SMTP_USER}>`,
+    from: `"NECT Election Committee" <${process.env.SMTP_USER}>`,
     to: staff.email,
-    subject: 'Action Required: DUR Welfare Election 2026',
+    subject: 'Action Required: NECT Election 2026',
     html: `
       <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
-        <h2 style="color: #2563EB;">Department of Urban Roads Welfare Election 2026</h2>
-        <p>Hello,</p>
-        <p>You have been registered as an eligible voter for the upcoming welfare election.</p>
+        <h2 style="color: #2563EB;">National Engineering Coordinating Team Election 2026</h2>
+        <p>Hello ${staffName},</p>
+        <p>You have been registered as an eligible voter for the upcoming NECT election.</p>
         
         <div style="background-color: #F3F4F6; padding: 15px; border-radius: 8px; margin: 20px 0;">
-          <p><strong>Staff ID:</strong> ${staffId}</p>
           <p><strong>Voting Period:</strong>10th April 2026 (8:00AM - 5:00 PM)</p>
         </div>
 
-        <p>Please use your Staff ID to log in and cast your vote securely.</p>
+        <p>Please use your Email Address to log in and cast your vote securely.</p>
         
         <a href="${process.env.NEXT_PUBLIC_SITE_URL || 'https://dur-election-site.vercel.app/'}" style="display: inline-block; background-color: #2563EB; color: white; padding: 12px 24px; text-decoration: none; border-radius: 5px; font-weight: bold;">
           Go to Voting Portal
@@ -354,15 +326,16 @@ export async function getStaffList() {
  }
 
 export async function sendThankYouEmail(staffId: string) {
-  const supabase = await createClient()
+  const supabase = createServiceClient()
   const { data: staff, error } = await supabase
     .from('staff')
-    .select('email')
+    .select('email, full_name')
     .eq('staff_id', staffId)
     .single()
   if (error || !staff?.email) {
     return { error: 'Staff email not found' }
   }
+  const staffName = staff.full_name || 'Staff Member';
   const transporter = nodemailer.createTransport({
     host: 'smtp.gmail.com',
     port: 465,
@@ -373,14 +346,14 @@ export async function sendThankYouEmail(staffId: string) {
     },
   })
   const mailOptions = {
-    from: `"DUR Election Committee" <${process.env.SMTP_USER}>`,
+    from: `"NECT Election Committee" <${process.env.SMTP_USER}>`,
     to: staff.email,
     subject: 'Thank You: Your Vote Has Been Recorded',
     html: `
       <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
         <h2 style="color: #2563EB;">Thank You for Voting</h2>
-        <p>Hello,</p>
-        <p>Your vote has been recorded successfully for the welfare election.</p>
+        <p>Hello ${staffName},</p>
+        <p>Your vote has been recorded successfully for the NECT election.</p>
         <p style="margin-top: 12px; font-size: 12px; color: #6B7280;">If you have any concerns, contact the election committee.</p>
       </div>
     `,

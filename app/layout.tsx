@@ -16,8 +16,8 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "DUR Election Portal",
-  description: "Official voting portal for DUR Welfare Elections",
+  title: "NECT Election Portal",
+  description: "Official voting portal for NECT Elections",
 };
 
 export default async function RootLayout({

@@ -109,7 +109,7 @@ export default function AdminLogin() {
         
         <div className="p-6 bg-zinc-50 dark:bg-zinc-800/50 border-t border-zinc-100 dark:border-zinc-800 text-center">
           <p className="text-[10px] text-zinc-400 dark:text-zinc-500 font-bold uppercase tracking-tighter">
-            Managed by IT Division &bull; Department of Urban Roads
+            Managed by IT Division &bull; National Engineering Coordinating Team
           </p>
         </div>
       </div>
