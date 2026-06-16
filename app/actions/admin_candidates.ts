@@ -97,6 +97,52 @@ export async function getCandidatesList() {
   return data
 }
 
+export async function uploadCandidateImage(formData: FormData) {
+  const file = formData.get('file') as File
+  const candidateId = formData.get('candidateId') as string
+  
+  if (!file || !candidateId) {
+    return { error: 'Missing file or candidate ID' }
+  }
+
+  const { createServiceClient } = await import('../utils/supabase/serviceRole')
+  const supabaseSR = createServiceClient()
+
+  try {
+    const fileExt = file.name.split('.').pop()
+    const fileName = `${candidateId}-${Math.random().toString(36).substring(2)}.${fileExt}`
+    
+    const { error: uploadError } = await supabaseSR.storage
+      .from('candidate-images')
+      .upload(fileName, file, { upsert: true })
+
+    if (uploadError) {
+      console.error('Storage upload error:', uploadError)
+      return { error: 'Failed to upload image to storage' }
+    }
+
+    const { data: publicUrlData } = supabaseSR.storage
+      .from('candidate-images')
+      .getPublicUrl(fileName)
+
+    const { error: updateError } = await supabaseSR
+      .from('candidates')
+      .update({ image_url: publicUrlData.publicUrl })
+      .eq('id', candidateId)
+
+    if (updateError) {
+      console.error('Database update error:', updateError)
+      return { error: 'Failed to save image URL to database' }
+    }
+
+    revalidatePath('/admin')
+    return { success: true, url: publicUrlData.publicUrl }
+  } catch (error: any) {
+    console.error('Image upload exception:', error)
+    return { error: 'An unexpected error occurred during image upload' }
+  }
+}
+
 export async function deleteCandidate(candidateId: string) {
   const { createServiceClient } = await import('../utils/supabase/serviceRole')
   const supabaseSR = createServiceClient()

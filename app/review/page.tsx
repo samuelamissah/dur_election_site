@@ -58,12 +58,20 @@ export default function ReviewPage() {
         description: p.description || '',
       })));
 
-      const { data: candData } = await supabase.from('candidates').select('id,name');
+      const { data: candData } = await supabase.from('candidates').select('id,name,position_id');
       const byId: Record<string, { name: string }> = {};
+      const posHasCandidates: Record<string, boolean> = {};
       (candData || []).forEach((c: any) => {
         byId[c.id] = { name: c.name };
+        if (c.position_id) posHasCandidates[c.position_id] = true;
       });
       setCandidatesById(byId);
+      
+      setPositions((posData || []).filter((p: any) => posHasCandidates[p.slug]).map((p: any) => ({
+        id: p.slug,
+        title: p.title,
+        description: p.description || '',
+      })));
       setLoading(false);
     }
     fetchSnapshot();
@@ -170,14 +178,15 @@ export default function ReviewPage() {
             {positions.map((pos) => {
               const selection = selections[pos.id];
               const isNoVote = selection === 'NO_VOTE';
-              const candidateName = isNoVote ? 'NO VOTE (Abstained)' : candidatesById[selection]?.name;
+              const isSkipped = selection === 'SKIP';
+              const candidateName = isNoVote ? 'NO VOTE (Abstained)' : isSkipped ? 'Skipped' : candidatesById[selection]?.name;
 
               return (
                 <div 
                   key={pos.id}
                   className={`p-4 sm:p-6 rounded-xl sm:rounded-2xl border transition-all ${
                     candidateName 
-                      ? isNoVote 
+                      ? (isNoVote || isSkipped)
                         ? 'bg-zinc-100/50 dark:bg-zinc-800/30 border-zinc-200 dark:border-zinc-700'
                         : 'bg-zinc-50 dark:bg-zinc-800/50 border-zinc-100 dark:border-zinc-700 shadow-sm' 
                       : 'bg-red-50/50 dark:bg-red-900/10 border-red-100 dark:border-red-900/30'
@@ -188,22 +197,37 @@ export default function ReviewPage() {
                       <p className="text-[8px] sm:text-[10px] font-black uppercase tracking-widest text-zinc-400 dark:text-zinc-500 mb-0.5 sm:mb-1">
                         {pos.title}
                       </p>
-                      <h3 className={`text-lg sm:text-xl font-bold ${candidateName ? isNoVote ? 'text-zinc-500 dark:text-zinc-400 italic' : 'text-zinc-900 dark:text-zinc-100' : 'text-red-600 dark:text-red-400'}`}>
+                      <h3 className={`text-lg sm:text-xl font-bold ${candidateName ? (isNoVote || isSkipped) ? 'text-zinc-500 dark:text-zinc-400 italic' : 'text-zinc-900 dark:text-zinc-100' : 'text-red-600 dark:text-red-400'}`}>
                         {candidateName || 'No Selection Made'}
                       </h3>
                     </div>
-                    {candidateName && (
-                      <div className={`flex items-center justify-center sm:justify-start gap-2 px-3 py-1 rounded-full border self-center ${
-                        isNoVote 
-                          ? 'text-zinc-500 dark:text-zinc-400 bg-zinc-100 dark:bg-zinc-800/50 border-zinc-200 dark:border-zinc-700'
-                          : 'text-green-600 dark:text-green-400 bg-green-50 dark:bg-green-900/20 border-green-100 dark:border-green-800/50'
-                      }`}>
-                        {isNoVote ? <X className="w-3.5 h-3.5 sm:w-4 sm:h-4" /> : <CheckCircle2 className="w-3.5 h-3.5 sm:w-4 sm:h-4" />}
-                        <span className="text-[8px] sm:text-[10px] font-bold uppercase tracking-wider">
-                          {isNoVote ? 'Abstained' : 'Confirmed'}
-                        </span>
-                      </div>
-                    )}
+                    <div className="flex flex-col sm:flex-row items-center gap-3 sm:gap-4">
+                      {candidateName && (
+                        <div className={`flex items-center justify-center sm:justify-start gap-2 px-3 py-1 rounded-full border self-center ${
+                          (isNoVote || isSkipped) 
+                            ? 'text-zinc-500 dark:text-zinc-400 bg-zinc-100 dark:bg-zinc-800/50 border-zinc-200 dark:border-zinc-700'
+                            : 'text-green-600 dark:text-green-400 bg-green-50 dark:bg-green-900/20 border-green-100 dark:border-green-800/50'
+                        }`}>
+                          {(isNoVote || isSkipped) ? <X className="w-3.5 h-3.5 sm:w-4 sm:h-4" /> : <CheckCircle2 className="w-3.5 h-3.5 sm:w-4 sm:h-4" />}
+                          <span className="text-[8px] sm:text-[10px] font-bold uppercase tracking-wider">
+                            {isNoVote ? 'Abstained' : isSkipped ? 'Skipped' : 'Confirmed'}
+                          </span>
+                        </div>
+                      )}
+                      <button 
+                        onClick={() => {
+                          const posIndex = positions.findIndex(p => p.id === pos.id);
+                          if (posIndex !== -1) {
+                            router.push(`/vote?step=${posIndex}`);
+                          } else {
+                            router.push('/vote');
+                          }
+                        }}
+                        className="text-[10px] font-bold text-zinc-500 hover:text-blue-600 dark:hover:text-blue-400 transition-colors uppercase tracking-wider px-3 py-1.5 rounded-lg hover:bg-zinc-200/50 dark:hover:bg-zinc-800/50"
+                      >
+                        Edit
+                      </button>
+                    </div>
                   </div>
                 </div>
               );

@@ -204,7 +204,7 @@ export async function sendConfirmationEmail(staffId: string) {
         <p>You have been registered as an eligible voter for the upcoming NECT election.</p>
         
         <div style="background-color: #F3F4F6; padding: 15px; border-radius: 8px; margin: 20px 0;">
-          <p><strong>Voting Period:</strong>10th April 2026 (8:00AM - 5:00 PM)</p>
+          <p><strong>Voting Period:</strong>17th June 2026 (8:00AM - 5:00 PM)</p>
         </div>
 
         <p>Please use your Email Address to log in and cast your vote securely.</p>

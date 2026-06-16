@@ -202,12 +202,12 @@ function ResultsView() {
   const resultsRef = useRef<HTMLDivElement>(null);
 
   const calculateTimeRemaining = useCallback(() => {
-    const electionDate = new Date('2026-04-10T08:00:00');
+    const electionDate = new Date('2026-06-17T18:00:00Z');
     const now = new Date();
     const diff = electionDate.getTime() - now.getTime();
     
     if (diff <= 0) {
-      setTimeRemaining('Election Live');
+      setTimeRemaining('Election Closed');
       return;
     }
     
@@ -643,15 +643,22 @@ pdf.text(
                                 {/* JD Initials / Image Circle */}
                                 <div className="w-10 h-10 rounded-full bg-white dark:bg-zinc-800 border-2 border-zinc-200 dark:border-zinc-700 flex items-center justify-center text-xs font-black text-blue-600 dark:text-blue-400 overflow-hidden shadow-sm group-hover:border-blue-500 transition-colors">
                                   {candidate.image_url ? (
-                                    <img 
-                                      src={candidate.image_url} 
-                                      alt="" 
-                                      className="w-full h-full object-cover" 
-                                      onError={(e) => {
-                                        (e.target as any).style.display = 'none';
-                                        (e.target as any).parentElement.innerText = initials;
-                                      }}
-                                    />
+                                    <div className="w-full h-full">
+                                      <img 
+                                        src={candidate.image_url} 
+                                        alt="" 
+                                        className="w-full h-full object-cover" 
+                                        onError={(e) => {
+                                          (e.target as any).style.display = 'none';
+                                          if ((e.target as any).nextElementSibling) {
+                                            (e.target as any).nextElementSibling.style.display = 'flex';
+                                          }
+                                        }}
+                                      />
+                                      <div className="hidden w-full h-full items-center justify-center">
+                                        {initials}
+                                      </div>
+                                    </div>
                                   ) : (
                                     initials
                                   )}
@@ -1022,6 +1029,8 @@ function CandidateManagement() {
   const [csvFile, setCsvFile] = useState<File | null>(null);
   const [uploadStatus, setUploadStatus] = useState('');
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [isDeletingAll, setIsDeletingAll] = useState(false);
+  const [isUploadingImage, setIsUploadingImage] = useState<string | null>(null);
   const [candidatesList, setCandidatesList] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
@@ -1078,6 +1087,30 @@ function CandidateManagement() {
     } catch (err) {
       console.error(err);
       setUploadStatus('An unexpected error occurred.');
+    }
+  };
+
+  const handleImageUpload = async (candidateId: string, file: File) => {
+    setIsUploadingImage(candidateId);
+    try {
+      const formData = new FormData();
+      formData.append('file', file);
+      formData.append('candidateId', candidateId);
+      
+      const { uploadCandidateImage } = await import('../actions/admin_candidates');
+      const result = await uploadCandidateImage(formData);
+      
+      if (result.success) {
+        show({ title: 'Success', message: 'Image uploaded successfully', variant: 'success' });
+        fetchCandidates();
+      } else {
+        show({ title: 'Error', message: result.error || 'Failed to upload image', variant: 'error' });
+      }
+    } catch (error) {
+      console.error(error);
+      show({ title: 'Error', message: 'An unexpected error occurred', variant: 'error' });
+    } finally {
+      setIsUploadingImage(null);
     }
   };
 
@@ -1234,20 +1267,44 @@ function CandidateManagement() {
               <tr key={candidate.id} className="group hover:bg-zinc-50 dark:hover:bg-zinc-800/50 transition-colors">
                 <td className="px-6 py-4">
                   <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 rounded-full bg-blue-100 dark:bg-blue-900/30 flex items-center justify-center text-blue-600 dark:text-blue-400 font-bold overflow-hidden border border-zinc-200 dark:border-zinc-700">
+                    <div className="w-10 h-10 rounded-full bg-blue-100 dark:bg-blue-900/30 flex items-center justify-center text-blue-600 dark:text-blue-400 font-bold overflow-hidden border border-zinc-200 dark:border-zinc-700 relative group/avatar">
                       {candidate.image_url ? (
-                        <img 
-                          src={candidate.image_url} 
-                          alt={candidate.name} 
-                          className="w-full h-full object-cover"
-                          onError={(e) => {
-                            (e.target as any).style.display = 'none';
-                            (e.target as any).parentElement.innerText = candidate.name.charAt(0);
-                          }}
-                        />
+                        <div className="w-full h-full relative group/img">
+                          <img 
+                            src={candidate.image_url} 
+                            alt={candidate.name} 
+                            className="w-full h-full object-cover"
+                            onError={(e) => {
+                              (e.target as any).style.display = 'none';
+                              if ((e.target as any).nextElementSibling) {
+                                (e.target as any).nextElementSibling.style.display = 'flex';
+                              }
+                            }}
+                          />
+                          <div className="hidden w-full h-full items-center justify-center">
+                            {candidate.name.split(' ').map((n: string) => n[0]).join('').toUpperCase().slice(0, 2)}
+                          </div>
+                        </div>
                       ) : (
                         candidate.name.split(' ').map((n: string) => n[0]).join('').toUpperCase().slice(0, 2)
                       )}
+                      <label className={`absolute inset-0 bg-black/50 flex items-center justify-center opacity-0 group-hover/avatar:opacity-100 cursor-pointer transition-opacity ${isUploadingImage === candidate.id ? 'opacity-100' : ''}`}>
+                        {isUploadingImage === candidate.id ? (
+                          <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                        ) : (
+                          <Upload className="w-4 h-4 text-white" />
+                        )}
+                        <input 
+                          type="file" 
+                          className="hidden" 
+                          accept="image/*" 
+                          onChange={(e) => {
+                            if (e.target.files && e.target.files[0]) {
+                              handleImageUpload(candidate.id, e.target.files[0]);
+                            }
+                          }} 
+                        />
+                      </label>
                     </div>
                     <div>
                       <p className="font-medium text-zinc-900 dark:text-zinc-100">{candidate.name}</p>

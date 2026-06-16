@@ -60,7 +60,7 @@ export default function VotingDashboard() {
           bio: c.bio || '',
           imageUrl: c.image_url || '',
         })),
-      }));
+      })).filter((p: any) => p.candidates.length > 0);
 
       setPositions(positionsMapped);
       setLoading(false);
@@ -77,7 +77,7 @@ export default function VotingDashboard() {
         let changed = false;
         positions.forEach(pos => {
           const sel = next[pos.id];
-          if (sel && sel !== 'NO_VOTE' && !pos.candidates.some(c => c.id === sel)) {
+          if (sel && sel !== 'NO_VOTE' && sel !== 'SKIP' && !pos.candidates.some(c => c.id === sel)) {
             delete next[pos.id];
             changed = true;
           }
@@ -228,24 +228,36 @@ export default function VotingDashboard() {
             <span className="hidden xs:inline">Previous</span>
           </button>
           
-          <button
-            type="button"
-            onClick={handleNext}
-            disabled={!selections[currentPos.id]}
-            className="flex-1 sm:flex-none flex items-center justify-center gap-2 px-6 sm:px-8 py-4 bg-blue-600 hover:bg-blue-700 disabled:bg-zinc-200 dark:disabled:bg-zinc-800 disabled:text-zinc-400 disabled:cursor-not-allowed text-white font-bold rounded-xl shadow-lg shadow-blue-500/20 hover:shadow-blue-500/30 transition-all active:scale-[0.98] group text-sm sm:text-base"
-          >
-            {currentStep === positions.length - 1 ? (
-              <>
-                Review <span className="hidden xs:inline">Ballot</span>
-                <CheckCircle2 className="w-4 h-4 sm:w-5 sm:h-5 group-hover:scale-110 transition-transform" />
-              </>
-            ) : (
-              <>
-                Next <span className="hidden xs:inline">Position</span>
-                <ChevronRight className="w-4 h-4 sm:w-5 sm:h-5 group-hover:translate-x-1 transition-transform" />
-              </>
-            )}
-          </button>
+          <div className="flex items-center gap-2 flex-1 sm:flex-none justify-end">
+            <button
+              type="button"
+              onClick={() => {
+                handleSelect('SKIP');
+                handleNext();
+              }}
+              className="px-4 py-3 sm:px-6 sm:py-4 text-zinc-500 dark:text-zinc-400 font-bold hover:bg-zinc-200 dark:hover:bg-zinc-800 rounded-xl transition-colors text-sm sm:text-base"
+            >
+              Skip
+            </button>
+            <button
+              type="button"
+              onClick={handleNext}
+              disabled={!selections[currentPos.id]}
+              className="flex items-center justify-center gap-2 px-6 sm:px-8 py-3 sm:py-4 bg-blue-600 hover:bg-blue-700 disabled:bg-zinc-200 dark:disabled:bg-zinc-800 disabled:text-zinc-400 disabled:cursor-not-allowed text-white font-bold rounded-xl shadow-lg shadow-blue-500/20 hover:shadow-blue-500/30 transition-all active:scale-[0.98] group text-sm sm:text-base"
+            >
+              {currentStep === positions.length - 1 ? (
+                <>
+                  Review <span className="hidden xs:inline">Ballot</span>
+                  <CheckCircle2 className="w-4 h-4 sm:w-5 sm:h-5 group-hover:scale-110 transition-transform" />
+                </>
+              ) : (
+                <>
+                  Next <span className="hidden xs:inline">Position</span>
+                  <ChevronRight className="w-4 h-4 sm:w-5 sm:h-5 group-hover:translate-x-1 transition-transform" />
+                </>
+              )}
+            </button>
+          </div>
         </div>
       </div>
 

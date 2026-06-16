@@ -20,9 +20,9 @@ export async function submitVote(selections: Record<string, string>) {
     return { error: 'Unauthorized: No active session' }
   }
 
-  // Transform selections object into array, filtering out "NO_VOTE" selections
+  // Transform selections object into array, filtering out "NO_VOTE" and "SKIP" selections
   const votesArray = Object.entries(selections)
-    .filter(([_, candidateId]) => candidateId !== 'NO_VOTE')
+    .filter(([_, candidateId]) => candidateId !== 'NO_VOTE' && candidateId !== 'SKIP')
     .map(([positionId, candidateId]) => ({
       position_id: positionId,
       candidate_id: candidateId

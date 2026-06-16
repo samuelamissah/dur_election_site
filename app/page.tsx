@@ -1,11 +1,12 @@
 
 import ElectionBanner from './components/ElectionBanner';
 import LoginForm from './components/LoginForm';
-import { isElectionClosed, ELECTION_END_DATE_STRING } from './utils/election';
-import { AlertTriangle } from 'lucide-react';
+import { isElectionClosed, isElectionOpen, ELECTION_END_DATE_STRING, ELECTION_START_DATE_STRING } from './utils/election';
+import { AlertTriangle, Clock } from 'lucide-react';
 
 export default function Home() {
   const closed = isElectionClosed();
+  const open = isElectionOpen();
 
   return (
     <div className="min-h-full bg-zinc-50 dark:bg-zinc-950 flex flex-col items-center justify-center font-sans antialiased">
@@ -31,6 +32,16 @@ export default function Home() {
               <h2 className="text-2xl font-bold mb-2 text-zinc-900 dark:text-zinc-100">Voting Closed</h2>
               <p className="text-sm text-zinc-500 dark:text-zinc-400 mb-6">
                 The welfare election concluded on {ELECTION_END_DATE_STRING}. Voting is no longer permitted.
+              </p>
+            </div>
+          ) : !open ? (
+            <div className="text-center py-6">
+              <div className="w-16 h-16 bg-yellow-50 dark:bg-yellow-900/20 rounded-full flex items-center justify-center mx-auto mb-4">
+                <Clock className="w-8 h-8 text-yellow-600 dark:text-yellow-400" />
+              </div>
+              <h2 className="text-2xl font-bold mb-2 text-zinc-900 dark:text-zinc-100">Voting Not Started</h2>
+              <p className="text-sm text-zinc-500 dark:text-zinc-400 mb-6">
+                The welfare election will start on {ELECTION_START_DATE_STRING}. Please return then to cast your vote.
               </p>
             </div>
           ) : (
