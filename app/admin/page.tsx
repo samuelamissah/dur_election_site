@@ -1424,7 +1424,9 @@ function ElectionControl() {
               <button 
                 onClick={async () => {
                   setIsUpdatingStatus(true);
-                  await setElectionStatusOverride('open');
+                  const res = await setElectionStatusOverride('open');
+                  if (res.error) show({ title: 'Error', message: res.error, variant: 'error' });
+                  else show({ title: 'Success', message: 'Election started!', variant: 'success' });
                   await fetchStatus();
                   setIsUpdatingStatus(false);
                 }}
@@ -1437,7 +1439,9 @@ function ElectionControl() {
               <button 
                 onClick={async () => {
                   setIsUpdatingStatus(true);
-                  await setElectionStatusOverride('open');
+                  const res = await setElectionStatusOverride('open');
+                  if (res.error) show({ title: 'Error', message: res.error, variant: 'error' });
+                  else show({ title: 'Success', message: 'Election re-opened!', variant: 'success' });
                   await fetchStatus();
                   setIsUpdatingStatus(false);
                 }}
@@ -1450,7 +1454,9 @@ function ElectionControl() {
               <button 
                 onClick={async () => {
                   setIsUpdatingStatus(true);
-                  await setElectionStatusOverride('closed');
+                  const res = await setElectionStatusOverride('closed');
+                  if (res.error) show({ title: 'Error', message: res.error, variant: 'error' });
+                  else show({ title: 'Success', message: 'Election ended!', variant: 'success' });
                   await fetchStatus();
                   setIsUpdatingStatus(false);
                 }}
@@ -1463,7 +1469,9 @@ function ElectionControl() {
             <button 
               onClick={async () => {
                 setIsUpdatingStatus(true);
-                await setElectionStatusOverride('auto');
+                const res = await setElectionStatusOverride('auto');
+                if (res.error) show({ title: 'Error', message: res.error, variant: 'error' });
+                else show({ title: 'Success', message: 'Restored to scheduled dates!', variant: 'success' });
                 await fetchStatus();
                 setIsUpdatingStatus(false);
               }}
