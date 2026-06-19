@@ -5,12 +5,13 @@ import { uploadStaffCsv, getElectionStats, getStaffList, sendConfirmationEmail, 
 import { uploadCandidatesCsv, getDetailedResults, deletePosition, getCandidatesList, deleteCandidate, deleteAllPositions, seedDefaultPositions } from '../actions/admin_candidates';
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { useRouter } from 'next/navigation';
-import { Users, UserPlus, Settings, BarChart2, Upload, Mail, Download, RefreshCw, AlertTriangleIcon, AlertTriangle, Landmark, LogOut, FileText, TrendingUp, Info } from 'lucide-react';
+import { Users, UserPlus, Settings, BarChart2, Upload, Mail, Download, RefreshCw, AlertTriangleIcon, AlertTriangle, Landmark, LogOut, FileText, TrendingUp, Info, Play, Pause, Square } from 'lucide-react';
 import { useToast } from '../components/Toast';
 import jsPDF from 'jspdf';
 import { toPng } from 'html-to-image';
 
-import { isElectionClosed, ELECTION_END_DATE_STRING } from '../utils/election';
+import { ELECTION_END_DATE_STRING } from '../utils/election';
+import { getElectionStatusClient, setElectionStatusOverride } from '../actions/election';
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
@@ -220,6 +221,9 @@ function ResultsView() {
     setIsLoading(true);
     try {
       calculateTimeRemaining();
+      const status = await getElectionStatusClient();
+      setIsElectionActive(status.open && !status.closed);
+      
       const data = await getElectionStats();
       if (data) {
         setStats({
@@ -348,7 +352,7 @@ pdf.text(
         ['Turnout Percentage', stats.turnout],
         [
           'Status',
-          isElectionClosed()
+          !isElectionActive
             ? 'COMPLETED - FINAL RESULTS'
             : 'IN PROGRESS',
         ],
@@ -1342,6 +1346,21 @@ function CandidateManagement() {
 function ElectionControl() {
   const { show } = useToast();
   const [isResetting, setIsResetting] = useState(false);
+  const [electionStatus, setElectionStatus] = useState({ closed: false, open: false });
+  const [isUpdatingStatus, setIsUpdatingStatus] = useState(false);
+
+  const fetchStatus = useCallback(async () => {
+    try {
+      const status = await getElectionStatusClient();
+      setElectionStatus(status);
+    } catch (e) {
+      console.error(e);
+    }
+  }, []);
+
+  useEffect(() => {
+    fetchStatus();
+  }, [fetchStatus]);
 
   const handleSystemReset = async () => {
     if (!confirm('CRITICAL: This will delete ALL staff, ALL candidates, ALL positions, and ALL votes. This cannot be undone. Proceed?')) return;
@@ -1374,13 +1393,21 @@ function ElectionControl() {
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
         <div className="bg-white dark:bg-zinc-800 rounded-lg shadow p-6">
           <h3 className="text-lg font-semibold mb-4 text-zinc-900 dark:text-zinc-100">Election Status</h3>
-          {isElectionClosed() ? (
+          {electionStatus.closed ? (
             <div className="flex items-center justify-between p-4 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg mb-6">
               <div className="flex items-center">
                 <div className="w-3 h-3 bg-red-500 rounded-full mr-3"></div>
                 <span className="font-medium text-red-800 dark:text-red-300">Closed</span>
               </div>
-              <span className="text-sm text-red-700 dark:text-red-400">Ended on {ELECTION_END_DATE_STRING}</span>
+              <span className="text-sm text-red-700 dark:text-red-400">Ended</span>
+            </div>
+          ) : !electionStatus.open ? (
+            <div className="flex items-center justify-between p-4 bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 rounded-lg mb-6">
+              <div className="flex items-center">
+                <div className="w-3 h-3 bg-yellow-500 rounded-full mr-3"></div>
+                <span className="font-medium text-yellow-800 dark:text-yellow-300">Pending</span>
+              </div>
+              <span className="text-sm text-yellow-700 dark:text-yellow-400">Not Started</span>
             </div>
           ) : (
             <div className="flex items-center justify-between p-4 bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-lg mb-6">
@@ -1393,11 +1420,57 @@ function ElectionControl() {
           )}
           
           <div className="space-y-4">
-            <button className="w-full py-3 px-4 border border-red-200 dark:border-red-800 text-red-600 dark:text-red-400 rounded-lg hover:bg-red-50 dark:hover:bg-red-900/20 font-medium transition-colors">
-              Pause Election
-            </button>
-            <button className="w-full py-3 px-4 bg-red-600 text-white rounded-lg hover:bg-red-700 font-medium transition-colors">
-              End Election Immediately
+            {!electionStatus.open ? (
+              <button 
+                onClick={async () => {
+                  setIsUpdatingStatus(true);
+                  await setElectionStatusOverride('open');
+                  await fetchStatus();
+                  setIsUpdatingStatus(false);
+                }}
+                disabled={isUpdatingStatus}
+                className="w-full py-3 px-4 bg-green-600 text-white rounded-lg hover:bg-green-700 font-medium transition-colors flex items-center justify-center gap-2"
+              >
+                <Play className="w-4 h-4" /> Start Election Now
+              </button>
+            ) : electionStatus.closed ? (
+              <button 
+                onClick={async () => {
+                  setIsUpdatingStatus(true);
+                  await setElectionStatusOverride('open');
+                  await fetchStatus();
+                  setIsUpdatingStatus(false);
+                }}
+                disabled={isUpdatingStatus}
+                className="w-full py-3 px-4 bg-green-600 text-white rounded-lg hover:bg-green-700 font-medium transition-colors flex items-center justify-center gap-2"
+              >
+                <Play className="w-4 h-4" /> Re-open Election
+              </button>
+            ) : (
+              <button 
+                onClick={async () => {
+                  setIsUpdatingStatus(true);
+                  await setElectionStatusOverride('closed');
+                  await fetchStatus();
+                  setIsUpdatingStatus(false);
+                }}
+                disabled={isUpdatingStatus}
+                className="w-full py-3 px-4 bg-red-600 text-white rounded-lg hover:bg-red-700 font-medium transition-colors flex items-center justify-center gap-2"
+              >
+                <Square className="w-4 h-4" /> End Election Now
+              </button>
+            )}
+            <button 
+              onClick={async () => {
+                setIsUpdatingStatus(true);
+                await setElectionStatusOverride('auto');
+                await fetchStatus();
+                setIsUpdatingStatus(false);
+              }}
+              disabled={isUpdatingStatus}
+              className="w-full py-3 px-4 border border-zinc-200 dark:border-zinc-800 text-zinc-600 dark:text-zinc-400 rounded-lg hover:bg-zinc-50 dark:hover:bg-zinc-900/20 font-medium transition-colors flex items-center justify-center gap-2"
+            >
+              <RefreshCw className="w-4 h-4" /> Use Scheduled Dates
             </button>
           </div>
         </div>

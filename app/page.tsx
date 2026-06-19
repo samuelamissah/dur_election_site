@@ -1,16 +1,17 @@
 
 import ElectionBanner from './components/ElectionBanner';
 import LoginForm from './components/LoginForm';
-import { isElectionClosed, isElectionOpen, ELECTION_END_DATE_STRING, ELECTION_START_DATE_STRING } from './utils/election';
+import { ELECTION_END_DATE_STRING, ELECTION_START_DATE_STRING } from './utils/election';
+import { isElectionClosed, isElectionOpen } from './actions/election';
 import { AlertTriangle, Clock } from 'lucide-react';
 
-export default function Home() {
-  const closed = isElectionClosed();
-  const open = isElectionOpen();
+export default async function Home() {
+  const closed = await isElectionClosed();
+  const open = await isElectionOpen();
 
   return (
     <div className="min-h-full bg-zinc-50 dark:bg-zinc-950 flex flex-col items-center justify-center font-sans antialiased">
-      <ElectionBanner />
+      <ElectionBanner closed={closed} open={open} />
       
       <main className="flex-1 flex flex-col items-center justify-center p-6 sm:p-20 relative w-full max-w-5xl">
         <div className="mb-10 sm:mb-12 text-center">

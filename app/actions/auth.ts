@@ -6,15 +6,16 @@ import { createServiceClient } from '../utils/supabase/serviceRole'
 import { redirect } from 'next/navigation'
 import { cookies } from 'next/headers'
 import { revalidatePath } from 'next/cache'
-import { isElectionClosed, isElectionOpen, ELECTION_END_DATE_STRING } from '../utils/election'
+import { ELECTION_END_DATE_STRING } from '../utils/election'
+import { isElectionClosed, isElectionOpen } from './election'
 import nodemailer from 'nodemailer'
 import crypto from 'crypto'
 
 export async function requestOtp(formData: FormData) {
-  if (isElectionClosed()) {
+  if (await isElectionClosed()) {
     return { error: `The election has officially closed as of ${ELECTION_END_DATE_STRING}. Voting is no longer permitted.` }
   }
-  if (!isElectionOpen()) {
+  if (!(await isElectionOpen())) {
     return { error: `The election has not started yet.` }
   }
 
@@ -94,7 +95,7 @@ export async function requestOtp(formData: FormData) {
 }
 
 export async function verifyOtpAndLogin(formData: FormData) {
-  if (isElectionClosed()) {
+  if (await isElectionClosed()) {
     return { error: `The election has officially closed.` }
   }
 

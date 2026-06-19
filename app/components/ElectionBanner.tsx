@@ -2,12 +2,9 @@
 'use client';
 
 import { Clock, Info, AlertTriangle } from 'lucide-react';
-import { isElectionClosed, isElectionOpen, ELECTION_END_DATE_STRING, ELECTION_START_DATE_STRING } from '../utils/election';
+import { ELECTION_END_DATE_STRING, ELECTION_START_DATE_STRING } from '../utils/election';
 
-export default function ElectionBanner() {
-  const closed = isElectionClosed();
-  const open = isElectionOpen();
-
+export default function ElectionBanner({ closed, open }: { closed?: boolean, open?: boolean }) {
   if (closed) {
     return (
       <div className="w-full bg-red-50 dark:bg-red-900/20 border-b border-red-100 dark:border-red-800/50 py-3 px-6 text-center font-medium flex items-center justify-center gap-3">

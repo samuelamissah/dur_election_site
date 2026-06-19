@@ -8,7 +8,8 @@ import { CheckCircle2, AlertCircle, ShieldCheck, ArrowLeft, Loader2, Send, LogOu
 import { submitVote } from '../actions/vote';
 import { createClient } from '../utils/supabase/client';
 import { logoutStaff } from '../actions/auth';
-import { isElectionClosed, ELECTION_END_DATE_STRING } from '../utils/election';
+import { ELECTION_END_DATE_STRING } from '../utils/election';
+import { getElectionStatusClient } from '../actions/election';
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
@@ -19,9 +20,8 @@ export default function ReviewPage() {
   const [positions, setPositions] = useState<{ id: string; title: string; description: string }[]>([]);
   const [candidatesById, setCandidatesById] = useState<Record<string, { name: string }>>({});
   const [loading, setLoading] = useState(true);
+  const [electionStatus, setElectionStatus] = useState({ closed: false, open: true });
   const router = useRouter();
-
-  const closed = isElectionClosed();
 
   useEffect(() => {
     const saved = localStorage.getItem('election_selections');
@@ -72,6 +72,9 @@ export default function ReviewPage() {
         title: p.title,
         description: p.description || '',
       })));
+      
+      const status = await getElectionStatusClient();
+      setElectionStatus(status);
       setLoading(false);
     }
     fetchSnapshot();
@@ -103,10 +106,10 @@ export default function ReviewPage() {
 
   const isComplete = positions.length > 0 && positions.every(p => selections[p.id]);
 
-  if (closed) {
+  if (electionStatus.closed) {
     return (
       <div className="min-h-screen bg-zinc-50 dark:bg-zinc-950 font-sans antialiased flex flex-col items-center justify-center p-6">
-        <ElectionBanner />
+        <ElectionBanner closed={electionStatus.closed} open={electionStatus.open} />
         <div className="flex-1 flex flex-col items-center justify-center w-full max-w-lg text-center space-y-6">
           <div className="w-20 h-20 bg-red-100 dark:bg-red-900/30 rounded-full flex items-center justify-center text-red-600 dark:text-red-400">
             <AlertCircle className="w-10 h-10" />
@@ -137,7 +140,7 @@ export default function ReviewPage() {
 
   return (
     <div className="min-h-full bg-zinc-50 dark:bg-zinc-950 font-sans antialiased">
-      <ElectionBanner />
+      <ElectionBanner closed={electionStatus.closed} open={electionStatus.open} />
       
       <main className="max-w-4xl mx-auto px-4 sm:px-6 py-6 sm:py-12">
         <div className="flex items-center justify-between mb-6 sm:mb-8">
