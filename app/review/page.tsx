@@ -20,7 +20,7 @@ export default function ReviewPage() {
   const [positions, setPositions] = useState<{ id: string; title: string; description: string }[]>([]);
   const [candidatesById, setCandidatesById] = useState<Record<string, { name: string }>>({});
   const [loading, setLoading] = useState(true);
-  const [electionStatus, setElectionStatus] = useState({ closed: false, open: true });
+  const [electionStatus, setElectionStatus] = useState<any>({ closed: false, open: true, startDateStr: '', endDateStr: '' });
   const router = useRouter();
 
   useEffect(() => {
@@ -109,7 +109,7 @@ export default function ReviewPage() {
   if (electionStatus.closed) {
     return (
       <div className="min-h-screen bg-zinc-50 dark:bg-zinc-950 font-sans antialiased flex flex-col items-center justify-center p-6">
-        <ElectionBanner closed={electionStatus.closed} open={electionStatus.open} />
+        <ElectionBanner closed={electionStatus.closed} open={electionStatus.open} startDateStr={electionStatus.startDateStr} endDateStr={electionStatus.endDateStr} />
         <div className="flex-1 flex flex-col items-center justify-center w-full max-w-lg text-center space-y-6">
           <div className="w-20 h-20 bg-red-100 dark:bg-red-900/30 rounded-full flex items-center justify-center text-red-600 dark:text-red-400">
             <AlertCircle className="w-10 h-10" />
@@ -118,7 +118,7 @@ export default function ReviewPage() {
             Election Closed
           </h1>
           <p className="text-zinc-500 dark:text-zinc-400 leading-relaxed">
-            The welfare election officially concluded on <strong>{ELECTION_END_DATE_STRING}</strong>. 
+            The welfare election officially concluded on <strong>{electionStatus.endDateStr || ELECTION_END_DATE_STRING}</strong>. 
             Voting is no longer permitted. Thank you to everyone who participated.
           </p>
           <button onClick={() => router.push('/')} className="px-6 py-3 bg-zinc-900 dark:bg-zinc-100 text-white dark:text-zinc-900 font-bold rounded-xl hover:bg-zinc-800 dark:hover:bg-zinc-200 transition-colors">
@@ -140,7 +140,7 @@ export default function ReviewPage() {
 
   return (
     <div className="min-h-full bg-zinc-50 dark:bg-zinc-950 font-sans antialiased">
-      <ElectionBanner closed={electionStatus.closed} open={electionStatus.open} />
+      <ElectionBanner closed={electionStatus.closed} open={electionStatus.open} startDateStr={electionStatus.startDateStr} endDateStr={electionStatus.endDateStr} />
       
       <main className="max-w-4xl mx-auto px-4 sm:px-6 py-6 sm:py-12">
         <div className="flex items-center justify-between mb-6 sm:mb-8">

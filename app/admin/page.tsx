@@ -11,7 +11,7 @@ import jsPDF from 'jspdf';
 import { toPng } from 'html-to-image';
 
 import { ELECTION_END_DATE_STRING } from '../utils/election';
-import { getElectionStatusClient, setElectionStatusOverride } from '../actions/election';
+import { getElectionStatusClient, setElectionSettings } from '../actions/election';
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
@@ -1346,13 +1346,25 @@ function CandidateManagement() {
 function ElectionControl() {
   const { show } = useToast();
   const [isResetting, setIsResetting] = useState(false);
-  const [electionStatus, setElectionStatus] = useState({ closed: false, open: false });
+  const [electionStatus, setElectionStatus] = useState<any>({ closed: false, open: false, status: 'auto', startDate: '', endDate: '', startDateStr: '', endDateStr: '' });
   const [isUpdatingStatus, setIsUpdatingStatus] = useState(false);
+  const [startDateInput, setStartDateInput] = useState('');
+  const [endDateInput, setEndDateInput] = useState('');
 
   const fetchStatus = useCallback(async () => {
     try {
       const status = await getElectionStatusClient();
       setElectionStatus(status);
+      if (status.startDate) {
+        const startD = new Date(status.startDate);
+        startD.setMinutes(startD.getMinutes() - startD.getTimezoneOffset());
+        setStartDateInput(startD.toISOString().slice(0, 16));
+      }
+      if (status.endDate) {
+        const endD = new Date(status.endDate);
+        endD.setMinutes(endD.getMinutes() - endD.getTimezoneOffset());
+        setEndDateInput(endD.toISOString().slice(0, 16));
+      }
     } catch (e) {
       console.error(e);
     }
@@ -1415,7 +1427,7 @@ function ElectionControl() {
                 <div className="w-3 h-3 bg-green-500 rounded-full mr-3 animate-pulse"></div>
                 <span className="font-medium text-green-800 dark:text-green-300">Active</span>
               </div>
-              <span className="text-sm text-green-700 dark:text-green-400">Ends on {ELECTION_END_DATE_STRING}</span>
+              <span className="text-sm text-green-700 dark:text-green-400">Ends on {electionStatus.endDateStr || ELECTION_END_DATE_STRING}</span>
             </div>
           )}
           
@@ -1424,7 +1436,7 @@ function ElectionControl() {
               <button 
                 onClick={async () => {
                   setIsUpdatingStatus(true);
-                  const res = await setElectionStatusOverride('open');
+                  const res = await setElectionSettings('open');
                   if (res.error) show({ title: 'Error', message: res.error, variant: 'error' });
                   else show({ title: 'Success', message: 'Election started!', variant: 'success' });
                   await fetchStatus();
@@ -1439,7 +1451,7 @@ function ElectionControl() {
               <button 
                 onClick={async () => {
                   setIsUpdatingStatus(true);
-                  const res = await setElectionStatusOverride('open');
+                  const res = await setElectionSettings('open');
                   if (res.error) show({ title: 'Error', message: res.error, variant: 'error' });
                   else show({ title: 'Success', message: 'Election re-opened!', variant: 'success' });
                   await fetchStatus();
@@ -1454,7 +1466,7 @@ function ElectionControl() {
               <button 
                 onClick={async () => {
                   setIsUpdatingStatus(true);
-                  const res = await setElectionStatusOverride('closed');
+                  const res = await setElectionSettings('closed');
                   if (res.error) show({ title: 'Error', message: res.error, variant: 'error' });
                   else show({ title: 'Success', message: 'Election ended!', variant: 'success' });
                   await fetchStatus();
@@ -1466,20 +1478,54 @@ function ElectionControl() {
                 <Square className="w-4 h-4" /> End Election Now
               </button>
             )}
-            <button 
-              onClick={async () => {
-                setIsUpdatingStatus(true);
-                const res = await setElectionStatusOverride('auto');
-                if (res.error) show({ title: 'Error', message: res.error, variant: 'error' });
-                else show({ title: 'Success', message: 'Restored to scheduled dates!', variant: 'success' });
-                await fetchStatus();
-                setIsUpdatingStatus(false);
-              }}
-              disabled={isUpdatingStatus}
-              className="w-full py-3 px-4 border border-zinc-200 dark:border-zinc-800 text-zinc-600 dark:text-zinc-400 rounded-lg hover:bg-zinc-50 dark:hover:bg-zinc-900/20 font-medium transition-colors flex items-center justify-center gap-2"
-            >
-              <RefreshCw className="w-4 h-4" /> Use Scheduled Dates
-            </button>
+
+            <div className="mt-6 pt-6 border-t border-zinc-200 dark:border-zinc-700">
+              <h4 className="text-sm font-semibold mb-3 text-zinc-900 dark:text-zinc-100">Scheduled Dates</h4>
+              <div className="grid grid-cols-2 gap-4 mb-4">
+                <div>
+                  <label className="block text-xs font-medium text-zinc-500 mb-1">Start Date & Time</label>
+                  <input 
+                    title="Start Date & Time"
+                    placeholder="Start Date & Time"
+                    type="datetime-local" 
+                    value={startDateInput} 
+                    onChange={e => setStartDateInput(e.target.value)} 
+                    className="w-full bg-zinc-50 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-700 rounded-md px-3 py-2 text-sm text-zinc-900 dark:text-zinc-100" 
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-medium text-zinc-500 mb-1">End Date & Time</label>
+                  <input 
+                    title="End Date & Time"
+                    placeholder="End Date & Time"
+                    type="datetime-local" 
+                    value={endDateInput} 
+                    onChange={e => setEndDateInput(e.target.value)} 
+                    className="w-full bg-zinc-50 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-700 rounded-md px-3 py-2 text-sm text-zinc-900 dark:text-zinc-100" 
+                  />
+                </div>
+              </div>
+              <button 
+                onClick={async () => {
+                  setIsUpdatingStatus(true);
+                  try {
+                    const startUtc = new Date(startDateInput).toISOString();
+                    const endUtc = new Date(endDateInput).toISOString();
+                    const res = await setElectionSettings('auto', startUtc, endUtc);
+                    if (res.error) show({ title: 'Error', message: res.error, variant: 'error' });
+                    else show({ title: 'Success', message: 'Election restored to scheduled dates!', variant: 'success' });
+                    await fetchStatus();
+                  } catch (err) {
+                    show({ title: 'Error', message: 'Invalid date format', variant: 'error' });
+                  }
+                  setIsUpdatingStatus(false);
+                }}
+                disabled={isUpdatingStatus}
+                className="w-full py-3 px-4 border border-zinc-200 dark:border-zinc-800 text-zinc-600 dark:text-zinc-400 rounded-lg hover:bg-zinc-50 dark:hover:bg-zinc-900/20 font-medium transition-colors flex items-center justify-center gap-2"
+              >
+                <RefreshCw className="w-4 h-4" /> Use Scheduled Dates
+              </button>
+            </div>
           </div>
         </div>
 

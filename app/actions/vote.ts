@@ -7,11 +7,12 @@ import { redirect } from 'next/navigation'
 import { createServiceClient } from '../utils/supabase/serviceRole'
 import { sendThankYouEmail } from './admin'
 import { ELECTION_END_DATE_STRING } from '../utils/election'
-import { isElectionClosed } from './election'
+import { getElectionStatusClient } from './election'
 
 export async function submitVote(selections: Record<string, string>) {
-  if (await isElectionClosed()) {
-    return { error: `Election closed on ${ELECTION_END_DATE_STRING}. Votes can no longer be submitted.` }
+  const status = await getElectionStatusClient();
+  if (status.closed) {
+    return { error: `Election closed on ${status.endDateStr || ELECTION_END_DATE_STRING}. Votes can no longer be submitted.` }
   }
 
   const cookieStore = await cookies()

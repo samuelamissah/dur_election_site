@@ -7,16 +7,17 @@ import { redirect } from 'next/navigation'
 import { cookies } from 'next/headers'
 import { revalidatePath } from 'next/cache'
 import { ELECTION_END_DATE_STRING } from '../utils/election'
-import { isElectionClosed, isElectionOpen } from './election'
+import { getElectionStatusClient } from './election'
 import nodemailer from 'nodemailer'
 import crypto from 'crypto'
 
 export async function requestOtp(formData: FormData) {
-  if (await isElectionClosed()) {
-    return { error: `The election has officially closed as of ${ELECTION_END_DATE_STRING}. Voting is no longer permitted.` }
+  const status = await getElectionStatusClient();
+  if (status.closed) {
+    return { error: `The election has officially closed as of ${status.endDateStr || ELECTION_END_DATE_STRING}. Voting is no longer permitted.` }
   }
-  if (!(await isElectionOpen())) {
-    return { error: `The election has not started yet.` }
+  if (!status.open) {
+    return { error: `The election will not start until ${status.startDateStr || 'the scheduled time'}.` }
   }
 
   const email = formData.get('email') as string
@@ -95,7 +96,8 @@ export async function requestOtp(formData: FormData) {
 }
 
 export async function verifyOtpAndLogin(formData: FormData) {
-  if (await isElectionClosed()) {
+  const status = await getElectionStatusClient();
+  if (status.closed) {
     return { error: `The election has officially closed.` }
   }
 

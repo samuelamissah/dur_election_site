@@ -2,16 +2,15 @@
 import ElectionBanner from './components/ElectionBanner';
 import LoginForm from './components/LoginForm';
 import { ELECTION_END_DATE_STRING, ELECTION_START_DATE_STRING } from './utils/election';
-import { isElectionClosed, isElectionOpen } from './actions/election';
+import { getElectionStatusClient } from './actions/election';
 import { AlertTriangle, Clock } from 'lucide-react';
 
 export default async function Home() {
-  const closed = await isElectionClosed();
-  const open = await isElectionOpen();
+  const { closed, open, startDateStr, endDateStr } = await getElectionStatusClient();
 
   return (
     <div className="min-h-full bg-zinc-50 dark:bg-zinc-950 flex flex-col items-center justify-center font-sans antialiased">
-      <ElectionBanner closed={closed} open={open} />
+      <ElectionBanner closed={closed} open={open} startDateStr={startDateStr} endDateStr={endDateStr} />
       
       <main className="flex-1 flex flex-col items-center justify-center p-6 sm:p-20 relative w-full max-w-5xl">
         <div className="mb-10 sm:mb-12 text-center">
@@ -32,7 +31,7 @@ export default async function Home() {
               </div>
               <h2 className="text-2xl font-bold mb-2 text-zinc-900 dark:text-zinc-100">Voting Closed</h2>
               <p className="text-sm text-zinc-500 dark:text-zinc-400 mb-6">
-                The welfare election concluded on {ELECTION_END_DATE_STRING}. Voting is no longer permitted.
+                The welfare election concluded on {endDateStr || ELECTION_END_DATE_STRING}. Voting is no longer permitted.
               </p>
             </div>
           ) : !open ? (
@@ -42,7 +41,7 @@ export default async function Home() {
               </div>
               <h2 className="text-2xl font-bold mb-2 text-zinc-900 dark:text-zinc-100">Voting Not Started</h2>
               <p className="text-sm text-zinc-500 dark:text-zinc-400 mb-6">
-                The welfare election will start on {ELECTION_START_DATE_STRING}. Please return then to cast your vote.
+                The welfare election will start on {startDateStr || ELECTION_START_DATE_STRING}. Please return then to cast your vote.
               </p>
             </div>
           ) : (
